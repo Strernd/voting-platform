@@ -4,6 +4,8 @@ import { getCurrentVote } from "@/lib/actions";
 import { getBeers } from "@/lib/beer-data";
 import { getVoterSession } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const beers = await getBeers();
   const voterUuid = await getVoterSession();
@@ -16,13 +18,27 @@ export default async function Home() {
         <h1 className="text-2xl font-bold text-foreground mb-6">
           Runde 1: Biere
         </h1>
-        
-        <Card className={`mb-6 ${isRegistered ? 'bg-green-950 border-green-800' : 'bg-red-950 border-red-800'}`}>
+
+        <Card
+          className={`mb-6 ${
+            isRegistered
+              ? "bg-green-950 border-green-800"
+              : "bg-red-950 border-red-800"
+          }`}
+        >
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${isRegistered ? 'bg-green-400' : 'bg-red-400'}`} />
-              <span className={`font-medium ${isRegistered ? 'text-green-100' : 'text-red-100'}`}>
-                {isRegistered ? 'Registered for voting' : 'Not yet registered'}
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  isRegistered ? "bg-green-400" : "bg-red-400"
+                }`}
+              />
+              <span
+                className={`font-medium ${
+                  isRegistered ? "text-green-100" : "text-red-100"
+                }`}
+              >
+                {isRegistered ? "Registered for voting" : "Not yet registered"}
               </span>
             </div>
             {!isRegistered && (
@@ -32,10 +48,10 @@ export default async function Home() {
             )}
           </CardContent>
         </Card>
-        
-        <BeerList 
-          beers={beers} 
-          voterUuid={voterUuid} 
+
+        <BeerList
+          beers={beers}
+          voterUuid={voterUuid}
           isRegistered={isRegistered}
           currentVoteBeerId={currentVoteBeerId || undefined}
         />
