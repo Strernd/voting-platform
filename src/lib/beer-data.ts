@@ -20,9 +20,8 @@ function mapBeer(beer: (typeof exampleBeers)[number]) {
 
 async function fetchBeers() {
   try {
-    const url = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}/api/beers`
-      : "http://localhost:3001/api/beers";
+    const url = process.env.BEERS_ENDPOINT!;
+    console.log("fetching beers from", url);
     const res = await fetch(url);
     const data = await res.json();
     return data as typeof exampleBeers;
