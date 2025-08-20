@@ -1,13 +1,13 @@
 import { RegisterForm } from "./register-form";
 
 interface RegisterPageProps {
-  params: {
+  params: Promise<{
     uuid: string;
-  };
+  }>;
 }
 
-export default function RegisterPage({ params }: RegisterPageProps) {
-  const { uuid } = params;
+export default async function RegisterPage({ params }: RegisterPageProps) {
+  const { uuid } = await params;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

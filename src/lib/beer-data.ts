@@ -19,13 +19,17 @@ function mapBeer(beer: (typeof exampleBeers)[number]) {
 }
 
 async function fetchBeers() {
-  const res = await fetch(
-    process.env.VERCEL_URL
+  try {
+    const url = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}/api/beers`
-      : "http://localhost:3001/api/beers"
-  );
-  const data = await res.json();
-  return data as typeof exampleBeers;
+      : "http://localhost:3001/api/beers";
+    const res = await fetch(url);
+    const data = await res.json();
+    return data as typeof exampleBeers;
+  } catch (error) {
+    console.error("Error fetching beers:", error);
+    return [];
+  }
 }
 
 let cachedBeers: Beer[] | null = null;
