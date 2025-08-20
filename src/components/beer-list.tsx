@@ -8,9 +8,12 @@ import { Search } from "lucide-react";
 
 interface BeerListProps {
   beers: Beer[];
+  voterUuid?: string;
+  isRegistered: boolean;
+  currentVoteBeerId?: string;
 }
 
-export function BeerList({ beers }: BeerListProps) {
+export function BeerList({ beers, voterUuid, isRegistered, currentVoteBeerId }: BeerListProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredBeers = useMemo(() => {
@@ -39,7 +42,13 @@ export function BeerList({ beers }: BeerListProps) {
       
       <div className="space-y-3">
         {filteredBeers.map((beer) => (
-          <BeerCard key={beer.beerId} beer={beer} />
+          <BeerCard 
+            key={beer.beerId} 
+            beer={beer} 
+            isRegistered={isRegistered}
+            hasVoted={!!currentVoteBeerId}
+            currentVoteBeerId={currentVoteBeerId}
+          />
         ))}
       </div>
       

@@ -1,9 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import {
   Sheet,
   SheetContent,
@@ -12,11 +10,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { VotingDrawer } from "@/components/voting-drawer";
 import { Beer } from "@/lib/beer-data";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 interface BeerCardProps {
   beer: Beer;
+  isRegistered: boolean;
+  hasVoted: boolean;
+  currentVoteBeerId?: string;
 }
 
 function getStyleBadgeColor(style: string): string {
@@ -42,9 +45,11 @@ function getStyleBadgeColor(style: string): string {
   return "bg-gray-500 hover:bg-gray-600";
 }
 
-export function BeerCard({ beer }: BeerCardProps) {
+export function BeerCard({ beer, isRegistered, hasVoted, currentVoteBeerId }: BeerCardProps) {
+  const isCurrentVote = currentVoteBeerId === beer.beerId;
+  
   return (
-    <Card className="w-full">
+    <Card className={`w-full ${isCurrentVote ? 'ring-2 ring-green-500 bg-green-950/30' : ''}`}>
       <CardContent className="p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -95,25 +100,12 @@ export function BeerCard({ beer }: BeerCardProps) {
             </div>
           </div>
 
-          <Drawer>
-            <DrawerTrigger asChild>
-              <Button
-                variant="outline"
-                size="default"
-                className="h-10 w-12 px-3 py-2 shrink-0 bg-transparent flex items-center justify-center"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent className="border-border">
-              <div className="p-6">
-                <h2 className="text-lg font-semibold mb-2">{beer.name}</h2>
-                <p className="text-muted-foreground">
-                  Drawer content coming soon...
-                </p>
-              </div>
-            </DrawerContent>
-          </Drawer>
+          <VotingDrawer 
+            beer={beer} 
+            isRegistered={isRegistered} 
+            hasVoted={hasVoted}
+            currentVoteBeerId={currentVoteBeerId}
+          />
         </div>
       </CardContent>
     </Card>
