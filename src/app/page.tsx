@@ -26,7 +26,7 @@ export default async function Home() {
               : "bg-red-950 border-red-800"
           }`}
         >
-          <CardContent className="p-4">
+          <CardContent className="px-4">
             <div className="flex items-center gap-2">
               <div
                 className={`w-3 h-3 rounded-full ${
@@ -38,12 +38,12 @@ export default async function Home() {
                   isRegistered ? "text-green-100" : "text-red-100"
                 }`}
               >
-                {isRegistered ? "Registered for voting" : "Not yet registered"}
+                {isRegistered ? "Registriert" : "Nicht registriert"}
               </span>
             </div>
             {!isRegistered && (
               <p className="text-red-200 text-sm mt-2">
-                You need a valid registration code to vote
+                Scanne deinen QR-Code um dich zu registrieren.
               </p>
             )}
           </CardContent>

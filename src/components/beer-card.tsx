@@ -22,28 +22,6 @@ interface BeerCardProps {
   currentVoteBeerId?: string;
 }
 
-function getStyleBadgeColor(style: string): string {
-  const lowerStyle = style.toLowerCase();
-
-  if (lowerStyle.includes("lager")) {
-    return "bg-blue-500 hover:bg-blue-600";
-  } else if (
-    lowerStyle.includes("ale") ||
-    lowerStyle.includes("ipa") ||
-    lowerStyle.includes("porter") ||
-    lowerStyle.includes("stout")
-  ) {
-    return "bg-orange-500 hover:bg-orange-600";
-  } else if (
-    lowerStyle.includes("wild") ||
-    lowerStyle.includes("sour") ||
-    lowerStyle.includes("lambic")
-  ) {
-    return "bg-green-500 hover:bg-green-600";
-  }
-
-  return "bg-gray-500 hover:bg-gray-600";
-}
 
 export function BeerCard({ beer, isRegistered, hasVoted, currentVoteBeerId }: BeerCardProps) {
   const isCurrentVote = currentVoteBeerId === beer.beerId;
@@ -78,7 +56,7 @@ export function BeerCard({ beer, isRegistered, hasVoted, currentVoteBeerId }: Be
                         className="flex items-center gap-2"
                       >
                         <ExternalLink className="h-4 w-4" />
-                        View Recipe
+                        Rezept ansehen
                       </a>
                     </Button>
                   </div>
@@ -88,11 +66,7 @@ export function BeerCard({ beer, isRegistered, hasVoted, currentVoteBeerId }: Be
             </div>
 
             <div className="flex items-center gap-3 text-xs">
-              <Badge
-                className={`${getStyleBadgeColor(
-                  beer.style
-                )} text-white text-xs px-2 py-0.5`}
-              >
+              <Badge className="border border-muted-foreground/30 bg-transparent text-foreground text-xs px-2 py-0.5">
                 {beer.style}
               </Badge>
               <span className="text-muted-foreground">{beer.alcohol}% ABV</span>

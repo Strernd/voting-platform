@@ -9,15 +9,15 @@ export default function RegisterErrorPage() {
         <CardContent className="p-6 text-center">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              Invalid User Code
+              Ungültiger Benutzercode
             </h1>
             <p className="text-muted-foreground">
-              The user code is invalid, please contact the organisers.
+              Der Benutzercode ist ungültig, bitte wende dich an die Organisatoren.
             </p>
           </div>
 
           <Button asChild className="w-full">
-            <Link href="/">Back to Home</Link>
+            <Link href="/">Zurück zur Startseite</Link>
           </Button>
         </CardContent>
       </Card>

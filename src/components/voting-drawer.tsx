@@ -20,28 +20,6 @@ interface VotingDrawerProps {
   currentVoteBeerId?: string;
 }
 
-function getStyleBadgeColor(style: string): string {
-  const lowerStyle = style.toLowerCase();
-
-  if (lowerStyle.includes("lager")) {
-    return "bg-blue-500 hover:bg-blue-600";
-  } else if (
-    lowerStyle.includes("ale") ||
-    lowerStyle.includes("ipa") ||
-    lowerStyle.includes("porter") ||
-    lowerStyle.includes("stout")
-  ) {
-    return "bg-orange-500 hover:bg-orange-600";
-  } else if (
-    lowerStyle.includes("wild") ||
-    lowerStyle.includes("sour") ||
-    lowerStyle.includes("lambic")
-  ) {
-    return "bg-green-500 hover:bg-green-600";
-  }
-
-  return "bg-gray-500 hover:bg-gray-600";
-}
 
 export function VotingDrawer({ beer, isRegistered, hasVoted, currentVoteBeerId }: VotingDrawerProps) {
   const [isVoting, setIsVoting] = useState(false);
@@ -54,7 +32,7 @@ export function VotingDrawer({ beer, isRegistered, hasVoted, currentVoteBeerId }
     if (!isRegistered) {
       setVoteResult({
         success: false,
-        message: "You must be registered to vote",
+        message: "Du musst registriert sein, um zu wählen",
       });
       return;
     }
@@ -66,7 +44,7 @@ export function VotingDrawer({ beer, isRegistered, hasVoted, currentVoteBeerId }
     } catch (error) {
       setVoteResult({
         success: false,
-        message: "An error occurred while voting",
+        message: "Ein Fehler ist beim Wählen aufgetreten",
       });
     } finally {
       setIsVoting(false);
@@ -103,11 +81,7 @@ export function VotingDrawer({ beer, isRegistered, hasVoted, currentVoteBeerId }
             </p>
             
             <div className="flex items-center gap-3 text-sm mb-6">
-              <Badge
-                className={`${getStyleBadgeColor(
-                  beer.style
-                )} text-white text-xs px-2 py-0.5`}
-              >
+              <Badge className="border border-muted-foreground/30 bg-transparent text-foreground text-xs px-2 py-0.5">
                 {beer.style}
               </Badge>
               <span className="text-muted-foreground">{beer.alcohol}% ABV</span>
@@ -144,7 +118,7 @@ export function VotingDrawer({ beer, isRegistered, hasVoted, currentVoteBeerId }
                   disabled={!isRegistered || isVoting}
                   className="w-full"
                 >
-                  {isVoting ? "Voting..." : "Try Again"}
+                  {isVoting ? "Wähle..." : "Erneut versuchen"}
                 </Button>
               )}
             </div>
@@ -155,7 +129,7 @@ export function VotingDrawer({ beer, isRegistered, hasVoted, currentVoteBeerId }
                   <div className="flex items-center gap-2 justify-center">
                     <CheckCircle className="h-5 w-5 text-green-400" />
                     <span className="text-green-100 font-medium">
-                      This is your current vote
+                      Das ist deine aktuelle Stimme
                     </span>
                   </div>
                 </div>
@@ -170,25 +144,25 @@ export function VotingDrawer({ beer, isRegistered, hasVoted, currentVoteBeerId }
               >
                 <ThumbsUp className="h-5 w-5" />
                 {isVoting
-                  ? "Voting..."
+                  ? "Wähle..."
                   : !isRegistered
-                  ? "Registration required"
+                  ? "Registrierung erforderlich"
                   : isCurrentVote
-                  ? "You voted for this beer"
+                  ? "Du hast für dieses Bier gestimmt"
                   : hasVotedForOtherBeer
-                  ? "Change vote to this beer"
-                  : "Vote for this beer"}
+                  ? "Stimme zu diesem Bier ändern"
+                  : "Für dieses Bier stimmen"}
               </Button>
               
               {!isRegistered && (
                 <p className="text-red-300 text-sm mt-2">
-                  You need to register with a valid code to vote
+                  Du musst dich mit einem gültigen Code registrieren, um zu wählen
                 </p>
               )}
               
               {hasVotedForOtherBeer && (
                 <p className="text-yellow-300 text-sm mt-2">
-                  Voting for this beer will change your current vote
+                  Eine Stimme für dieses Bier ändert deine aktuelle Wahl
                 </p>
               )}
             </div>
