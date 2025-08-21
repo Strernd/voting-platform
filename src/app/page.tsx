@@ -1,6 +1,6 @@
 import { BeerList } from "@/components/beer-list";
 import { Card, CardContent } from "@/components/ui/card";
-import { getCurrentVote } from "@/lib/actions";
+import { getCurrentVote, getActiveRound } from "@/lib/actions";
 import { getBeers } from "@/lib/beer-data";
 import { getVoterSession } from "@/lib/session";
 
@@ -11,12 +11,13 @@ export default async function Home() {
   const voterUuid = await getVoterSession();
   const isRegistered = !!voterUuid;
   const currentVoteBeerId = await getCurrentVote();
+  const activeRound = await getActiveRound();
 
   return (
     <div className="dark min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 max-w-md">
         <h1 className="text-2xl font-bold text-foreground mb-6">
-          Runde 1: Biere
+          {activeRound ? `${activeRound.id}: ${activeRound.name}: Biere` : "Keine aktive Runde"}
         </h1>
 
         <Card

@@ -1,27 +1,59 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { votes } from "@/db/schema";
+import { votes, beerRounds } from "@/db/schema";
 import { exampleBeers } from "../../beers/examples";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Get vote counts for each beer
-    const voteCountsRaw = await db
-      .select({
-        beerId: votes.beerId,
-        count: sql<number>`count(*)`.as('count'),
-      })
-      .from(votes)
-      .groupBy(votes.beerId);
+    const { searchParams } = new URL(request.url);
+    const roundId = searchParams.get('roundId');
+
+    let voteCountsRaw;
+    let roundBeerIds: Set<string> = new Set();
+    
+    if (roundId) {
+      // Get beers assigned to this round
+      const roundBeers = await db
+        .select({ beerId: beerRounds.beerId })
+        .from(beerRounds)
+        .where(eq(beerRounds.roundId, parseInt(roundId, 10)));
+      
+      roundBeerIds = new Set(roundBeers.map(rb => rb.beerId));
+      
+      // Get vote counts for specific round
+      voteCountsRaw = await db
+        .select({
+          beerId: votes.beerId,
+          count: sql<number>`count(*)`.as('count'),
+        })
+        .from(votes)
+        .where(eq(votes.roundId, parseInt(roundId, 10)))
+        .groupBy(votes.beerId);
+    } else {
+      // Get vote counts for all rounds (existing behavior)
+      voteCountsRaw = await db
+        .select({
+          beerId: votes.beerId,
+          count: sql<number>`count(*)`.as('count'),
+        })
+        .from(votes)
+        .groupBy(votes.beerId);
+    }
 
     // Convert to a Map for easy lookup
     const voteCounts = new Map(
       voteCountsRaw.map(v => [v.beerId, v.count])
     );
 
+    // Filter beers based on round assignment (if roundId is provided)
+    let filteredBeers = exampleBeers;
+    if (roundId && roundBeerIds.size > 0) {
+      filteredBeers = exampleBeers.filter(beer => roundBeerIds.has(beer.submission_id));
+    }
+
     // Combine beer data with vote counts
-    const beersWithVotes = exampleBeers.map(beer => ({
+    const beersWithVotes = filteredBeers.map(beer => ({
       id: beer.submission_id,
       name: beer.beername,
       brewer: beer.brewer,
