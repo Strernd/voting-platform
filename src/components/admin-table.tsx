@@ -20,6 +20,9 @@ interface BeerWithVotes {
   brewer: string;
   style: string;
   votes: number;
+  rawVotes: number;
+  startbahn: number;
+  reinheitsgebot: boolean;
 }
 
 export function AdminTable() {
@@ -90,38 +93,64 @@ export function AdminTable() {
 
   const BeerTable = ({ beers }: { beers: BeerWithVotes[] }) => {
     const totalVotes = beers.reduce((sum, beer) => sum + beer.votes, 0);
-    
+    const totalRawVotes = beers.reduce((sum, beer) => sum + beer.rawVotes, 0);
+
     return (
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[300px]">Beer Name</TableHead>
-              <TableHead className="w-[200px]">Brewer</TableHead>
-              <TableHead className="w-[250px]">Style</TableHead>
-              <TableHead className="text-right w-[100px]">Votes</TableHead>
+              <TableHead className="w-[60px]">Startbahn</TableHead>
+              <TableHead className="w-[250px]">Bier</TableHead>
+              <TableHead className="w-[150px]">Brauerei</TableHead>
+              <TableHead className="w-[60px]">RHG</TableHead>
+              <TableHead className="text-right w-[120px]">
+                Gewichtete Punkte
+              </TableHead>
+              <TableHead className="text-right w-[80px]">Stimmen</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Total votes row */}
             <TableRow className="bg-muted/50 font-medium">
-              <TableCell colSpan={3} className="font-bold">
-                Total Votes
+              <TableCell colSpan={4} className="font-bold">
+                Gesamt
               </TableCell>
               <TableCell className="text-right font-bold">
-                {totalVotes}
+                {totalVotes.toFixed(2)}
+              </TableCell>
+              <TableCell className="text-right font-bold">
+                {totalRawVotes}
               </TableCell>
             </TableRow>
-            
-            {beers.map((beer) => {
-              const percentage = totalVotes > 0 ? (beer.votes / totalVotes) * 100 : 0;
+
+            {beers.map((beer, index) => {
+              const percentage =
+                totalVotes > 0 ? (beer.votes / totalVotes) * 100 : 0;
               return (
                 <TableRow key={beer.id}>
-                  <TableCell className="font-medium">{beer.name}</TableCell>
-                  <TableCell>{beer.brewer}</TableCell>
-                  <TableCell className="text-sm">{beer.style}</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {beer.votes} ({percentage.toFixed(2)}%)
+                  <TableCell className="font-bold text-lg">
+                    {beer.startbahn}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{beer.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {beer.style}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{beer.brewer}</TableCell>
+                  <TableCell>
+                    {beer.reinheitsgebot && (
+                      <Badge className="bg-green-600 text-xs">Ja</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span className="font-semibold">{beer.votes.toFixed(2)}</span>
+                    <span className="text-muted-foreground text-xs ml-1">
+                      ({percentage.toFixed(1)}%)
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {beer.rawVotes}
                   </TableCell>
                 </TableRow>
               );
@@ -130,7 +159,7 @@ export function AdminTable() {
         </Table>
         {beers.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
-            No beers found for this round
+            Keine Biere in dieser Runde registriert
           </div>
         )}
       </div>

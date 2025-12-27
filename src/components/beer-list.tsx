@@ -4,17 +4,24 @@ import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BeerCard } from "@/components/beer-card";
-import { Beer } from "@/lib/beer-data";
+import { BeerWithRegistration } from "@/lib/beer-data";
 import { Search } from "lucide-react";
 
 interface BeerListProps {
-  beers: Beer[];
+  beers: BeerWithRegistration[];
   voterUuid?: string;
   isRegistered: boolean;
-  currentVoteBeerId?: string;
+  currentVoteIds: string[];
+  votingEnabled?: boolean;
 }
 
-export function BeerList({ beers, voterUuid, isRegistered, currentVoteBeerId }: BeerListProps) {
+export function BeerList({
+  beers,
+  voterUuid,
+  isRegistered,
+  currentVoteIds,
+  votingEnabled = true,
+}: BeerListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStyle, setSelectedStyle] = useState<string>("all");
 
@@ -91,12 +98,12 @@ export function BeerList({ beers, voterUuid, isRegistered, currentVoteBeerId }: 
       
       <div className="space-y-3">
         {filteredBeers.map((beer) => (
-          <BeerCard 
-            key={beer.beerId} 
-            beer={beer} 
+          <BeerCard
+            key={beer.beerId}
+            beer={beer}
             isRegistered={isRegistered}
-            hasVoted={!!currentVoteBeerId}
-            currentVoteBeerId={currentVoteBeerId}
+            currentVoteIds={currentVoteIds}
+            votingEnabled={votingEnabled}
           />
         ))}
       </div>

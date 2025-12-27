@@ -1,9 +1,14 @@
 "use server";
 
 import { exampleBeers } from "@/app/api/beers/examples";
-import { getActiveRound, getBeersInRound } from "@/lib/actions";
+import { getActiveRound, getRegisteredBeers } from "@/lib/actions";
 
 export type Beer = ReturnType<typeof mapBeer>;
+
+export type BeerWithRegistration = Beer & {
+  startbahn: number;
+  reinheitsgebot: boolean;
+};
 
 function mapBeer(beer: (typeof exampleBeers)[number]) {
   return {
@@ -48,19 +53,41 @@ export async function getAllBeers() {
   return cachedBeers;
 }
 
-export async function getBeers() {
+export async function getBeers(): Promise<BeerWithRegistration[]> {
   const allBeers = await getAllBeers();
-  
+
   // Get active round
   const activeRound = await getActiveRound();
   if (!activeRound) {
     return []; // No active round, return empty array
   }
-  
-  // Get beers assigned to active round
-  const beerRounds = await getBeersInRound(activeRound.id);
-  const activeBeerIds = new Set(beerRounds.map(br => br.beerId));
-  
-  // Filter beers to only show those assigned to active round
-  return allBeers.filter(beer => activeBeerIds.has(beer.beerId));
+
+  // Get registered beers (only registered beers are visible)
+  const registrations = await getRegisteredBeers();
+
+  // Filter to beers registered for the active round
+  const activeRegistrations = registrations.filter(
+    (reg) => reg.roundId === activeRound.id
+  );
+
+  // Create a map for quick lookup
+  const registrationMap = new Map(
+    activeRegistrations.map((reg) => [reg.beerId, reg])
+  );
+
+  // Filter and enrich beers with registration info
+  const beersWithRegistration = allBeers
+    .filter((beer) => registrationMap.has(beer.beerId))
+    .map((beer) => {
+      const reg = registrationMap.get(beer.beerId)!;
+      return {
+        ...beer,
+        startbahn: reg.startbahn,
+        reinheitsgebot: reg.reinheitsgebot,
+      };
+    })
+    // Sort by Startbahn
+    .sort((a, b) => a.startbahn - b.startbahn);
+
+  return beersWithRegistration;
 }

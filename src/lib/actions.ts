@@ -1,8 +1,17 @@
 "use server";
 
-import { voters, votes, rounds, beerRounds } from "@/db/schema";
+import {
+  voters,
+  votes,
+  rounds,
+  beerRounds,
+  competitionSettings,
+  beerRegistrations,
+  type CompetitionSettings,
+  type BeerRegistration,
+} from "@/db/schema";
 import { db } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, notInArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
@@ -43,16 +52,30 @@ export async function registerVoter(uuid: string): Promise<boolean> {
   }
 }
 
-export async function voteForBeer(
+export async function toggleVoteForBeer(
   beerId: string
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; votes: string[] }> {
   try {
+    // Check if voting is enabled
+    const settings = await getCompetitionSettings();
+    if (!settings.votingEnabled) {
+      return {
+        success: false,
+        message: "Die Abstimmung ist derzeit geschlossen",
+        votes: [],
+      };
+    }
+
     // Get current session
     const cookieStore = await cookies();
     const voterUuid = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (!voterUuid) {
-      return { success: false, message: "You must be registered to vote" };
+      return {
+        success: false,
+        message: "Du musst registriert sein, um zu wahlen",
+        votes: [],
+      };
     }
 
     // Check if voter exists and is active
@@ -61,7 +84,11 @@ export async function voteForBeer(
       .from(voters)
       .where(eq(voters.id, voterUuid));
     if (voterRecords.length === 0 || !voterRecords[0].active) {
-      return { success: false, message: "Invalid or inactive voter" };
+      return {
+        success: false,
+        message: "Ungultige oder inaktive Registrierung",
+        votes: [],
+      };
     }
 
     // Get active round
@@ -69,50 +96,68 @@ export async function voteForBeer(
       .select()
       .from(rounds)
       .where(eq(rounds.active, true));
-    
+
     if (activeRoundRecords.length === 0) {
-      return { success: false, message: "No active round available" };
+      return {
+        success: false,
+        message: "Keine aktive Runde verfugbar",
+        votes: [],
+      };
     }
-    
+
     const activeRound = activeRoundRecords[0];
 
-    // Check if beer is assigned to active round
+    // Check if beer is registered in active round
     const beerInRound = await db
       .select()
-      .from(beerRounds)
-      .where(and(eq(beerRounds.beerId, beerId), eq(beerRounds.roundId, activeRound.id)));
-    
+      .from(beerRegistrations)
+      .where(
+        and(
+          eq(beerRegistrations.beerId, beerId),
+          eq(beerRegistrations.roundId, activeRound.id)
+        )
+      );
+
     if (beerInRound.length === 0) {
-      return { success: false, message: "Beer is not available in the current round" };
+      return {
+        success: false,
+        message: "Bier ist in der aktuellen Runde nicht verfugbar",
+        votes: [],
+      };
     }
 
-    // Check if voter has already voted in this round
-    const existingVotes = await db
+    // Check if voter has already voted for this beer in this round
+    const existingVote = await db
       .select()
       .from(votes)
-      .where(and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id)));
+      .where(
+        and(
+          eq(votes.voterId, voterUuid),
+          eq(votes.beerId, beerId),
+          eq(votes.roundId, activeRound.id)
+        )
+      );
 
-    if (existingVotes.length > 0) {
-      const currentVote = existingVotes[0];
-
-      if (currentVote.beerId === beerId) {
-        return {
-          success: false,
-          message: "You have already voted for this beer",
-        };
-      }
-
-      // Update existing vote to new beer
-      await db
-        .update(votes)
-        .set({ beerId: beerId, createdAt: new Date().toISOString() })
-        .where(eq(votes.id, currentVote.id));
-
+    if (existingVote.length > 0) {
+      // Remove the vote (toggle off)
+      await db.delete(votes).where(eq(votes.id, existingVote[0].id));
       revalidatePath("/");
 
-      return { success: true, message: "Vote changed successfully!" };
+      // Get updated votes
+      const currentVotes = await db
+        .select({ beerId: votes.beerId })
+        .from(votes)
+        .where(
+          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
+        );
+
+      return {
+        success: true,
+        message: "Stimme entfernt",
+        votes: currentVotes.map((v) => v.beerId),
+      };
     } else {
-      // Create new vote
+      // Add new vote
       await db.insert(votes).values({
         voterId: voterUuid,
         beerId: beerId,
@@ -121,21 +166,37 @@ export async function voteForBeer(
 
       revalidatePath("/");
 
-      return { success: true, message: "Vote recorded successfully!" };
+      // Get updated votes
+      const currentVotes = await db
+        .select({ beerId: votes.beerId })
+        .from(votes)
+        .where(
+          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
+        );
+
+      return {
+        success: true,
+        message: "Stimme hinzugefugt",
+        votes: currentVotes.map((v) => v.beerId),
+      };
     }
   } catch (error) {
     console.error("Voting error:", error);
-    return { success: false, message: "An error occurred while voting" };
+    return {
+      success: false,
+      message: "Ein Fehler ist aufgetreten",
+      votes: [],
+    };
   }
 }
 
-export async function getCurrentVote(): Promise<string | null> {
+export async function getCurrentVotes(): Promise<string[]> {
   try {
     const cookieStore = await cookies();
     const voterUuid = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (!voterUuid) {
-      return null;
+      return [];
     }
 
     // Get active round
@@ -143,22 +204,24 @@ export async function getCurrentVote(): Promise<string | null> {
       .select()
       .from(rounds)
       .where(eq(rounds.active, true));
-    
+
     if (activeRoundRecords.length === 0) {
-      return null;
+      return [];
     }
-    
+
     const activeRound = activeRoundRecords[0];
 
     const existingVotes = await db
-      .select()
+      .select({ beerId: votes.beerId })
       .from(votes)
-      .where(and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id)));
+      .where(
+        and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
+      );
 
-    return existingVotes.length > 0 ? existingVotes[0].beerId : null;
+    return existingVotes.map((v) => v.beerId);
   } catch (error) {
-    console.error("Error getting current vote:", error);
-    return null;
+    console.error("Error getting current votes:", error);
+    return [];
   }
 }
 
@@ -252,5 +315,208 @@ export async function getAllAssignedBeerIds() {
   } catch (error) {
     console.error("Error getting assigned beer IDs:", error);
     return new Set<string>();
+  }
+}
+
+// Competition settings actions
+export async function getCompetitionSettings(): Promise<CompetitionSettings> {
+  try {
+    const settings = await db.select().from(competitionSettings).where(eq(competitionSettings.id, 1));
+    if (settings.length === 0) {
+      // Create default settings
+      await db.insert(competitionSettings).values({ id: 1 });
+      return { id: 1, votingEnabled: false, startbahnCount: 50 };
+    }
+    return settings[0];
+  } catch (error) {
+    console.error("Error getting competition settings:", error);
+    return { id: 1, votingEnabled: false, startbahnCount: 50 };
+  }
+}
+
+export async function updateCompetitionSettings(
+  settings: Partial<Pick<CompetitionSettings, "votingEnabled" | "startbahnCount">>
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // Ensure settings row exists
+    const existing = await db.select().from(competitionSettings).where(eq(competitionSettings.id, 1));
+    if (existing.length === 0) {
+      await db.insert(competitionSettings).values({ id: 1, ...settings });
+    } else {
+      await db.update(competitionSettings).set(settings).where(eq(competitionSettings.id, 1));
+    }
+    revalidatePath("/");
+    revalidatePath("/admin");
+    return { success: true, message: "Einstellungen gespeichert" };
+  } catch (error) {
+    console.error("Error updating competition settings:", error);
+    return { success: false, message: "Fehler beim Speichern der Einstellungen" };
+  }
+}
+
+export async function isVotingEnabled(): Promise<boolean> {
+  try {
+    const settings = await getCompetitionSettings();
+    return settings.votingEnabled;
+  } catch (error) {
+    console.error("Error checking voting status:", error);
+    return false;
+  }
+}
+
+// Beer registration actions
+export async function registerBeer(
+  beerId: string,
+  startbahn: number,
+  roundId: number,
+  reinheitsgebot: boolean
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const settings = await getCompetitionSettings();
+
+    // Validate Startbahn range
+    if (startbahn < 1 || startbahn > settings.startbahnCount) {
+      return { success: false, message: `Startbahn muss zwischen 1 und ${settings.startbahnCount} liegen` };
+    }
+
+    // Check if beer is already registered
+    const existingReg = await db
+      .select()
+      .from(beerRegistrations)
+      .where(eq(beerRegistrations.beerId, beerId));
+    if (existingReg.length > 0) {
+      return { success: false, message: "Bier ist bereits registriert" };
+    }
+
+    // Check if Startbahn is already used in this round
+    const startbahnUsed = await db
+      .select()
+      .from(beerRegistrations)
+      .where(and(eq(beerRegistrations.startbahn, startbahn), eq(beerRegistrations.roundId, roundId)));
+    if (startbahnUsed.length > 0) {
+      return { success: false, message: `Startbahn ${startbahn} ist bereits vergeben in dieser Runde` };
+    }
+
+    // Insert registration
+    await db.insert(beerRegistrations).values({
+      beerId,
+      startbahn,
+      roundId,
+      reinheitsgebot,
+    });
+
+    // Also add to beerRounds for compatibility
+    await db.delete(beerRounds).where(eq(beerRounds.beerId, beerId));
+    await db.insert(beerRounds).values({ beerId, roundId });
+
+    revalidatePath("/");
+    revalidatePath("/admin");
+    return { success: true, message: "Bier erfolgreich registriert" };
+  } catch (error) {
+    console.error("Error registering beer:", error);
+    return { success: false, message: "Fehler beim Registrieren des Biers" };
+  }
+}
+
+export async function getAvailableStartbahns(roundId: number): Promise<number[]> {
+  try {
+    const settings = await getCompetitionSettings();
+    const usedStartbahns = await db
+      .select({ startbahn: beerRegistrations.startbahn })
+      .from(beerRegistrations)
+      .where(eq(beerRegistrations.roundId, roundId));
+
+    const usedSet = new Set(usedStartbahns.map((s) => s.startbahn));
+    const available: number[] = [];
+    for (let i = 1; i <= settings.startbahnCount; i++) {
+      if (!usedSet.has(i)) {
+        available.push(i);
+      }
+    }
+    return available;
+  } catch (error) {
+    console.error("Error getting available startbahns:", error);
+    return [];
+  }
+}
+
+export async function getRegisteredBeers(): Promise<BeerRegistration[]> {
+  try {
+    return await db.select().from(beerRegistrations);
+  } catch (error) {
+    console.error("Error getting registered beers:", error);
+    return [];
+  }
+}
+
+export async function getRegisteredBeerIds(): Promise<Set<string>> {
+  try {
+    const registrations = await db.select({ beerId: beerRegistrations.beerId }).from(beerRegistrations);
+    return new Set(registrations.map((r) => r.beerId));
+  } catch (error) {
+    console.error("Error getting registered beer IDs:", error);
+    return new Set<string>();
+  }
+}
+
+export async function updateBeerRegistration(
+  beerId: string,
+  updates: Partial<Pick<BeerRegistration, "startbahn" | "roundId" | "reinheitsgebot">>
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const currentReg = await db
+      .select()
+      .from(beerRegistrations)
+      .where(eq(beerRegistrations.beerId, beerId));
+    if (currentReg.length === 0) {
+      return { success: false, message: "Bier ist nicht registriert" };
+    }
+
+    const newRoundId = updates.roundId ?? currentReg[0].roundId;
+    const newStartbahn = updates.startbahn ?? currentReg[0].startbahn;
+
+    // Check Startbahn uniqueness if changed
+    if (updates.startbahn !== undefined || updates.roundId !== undefined) {
+      const conflict = await db
+        .select()
+        .from(beerRegistrations)
+        .where(
+          and(
+            eq(beerRegistrations.startbahn, newStartbahn),
+            eq(beerRegistrations.roundId, newRoundId)
+          )
+        );
+      if (conflict.length > 0 && conflict[0].beerId !== beerId) {
+        return { success: false, message: `Startbahn ${newStartbahn} ist bereits vergeben in dieser Runde` };
+      }
+    }
+
+    await db.update(beerRegistrations).set(updates).where(eq(beerRegistrations.beerId, beerId));
+
+    // Update beerRounds if round changed
+    if (updates.roundId !== undefined) {
+      await db.delete(beerRounds).where(eq(beerRounds.beerId, beerId));
+      await db.insert(beerRounds).values({ beerId, roundId: updates.roundId });
+    }
+
+    revalidatePath("/");
+    revalidatePath("/admin");
+    return { success: true, message: "Registrierung aktualisiert" };
+  } catch (error) {
+    console.error("Error updating beer registration:", error);
+    return { success: false, message: "Fehler beim Aktualisieren der Registrierung" };
+  }
+}
+
+export async function unregisterBeer(beerId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    await db.delete(beerRegistrations).where(eq(beerRegistrations.beerId, beerId));
+    await db.delete(beerRounds).where(eq(beerRounds.beerId, beerId));
+    revalidatePath("/");
+    revalidatePath("/admin");
+    return { success: true, message: "Registrierung entfernt" };
+  } catch (error) {
+    console.error("Error unregistering beer:", error);
+    return { success: false, message: "Fehler beim Entfernen der Registrierung" };
   }
 }

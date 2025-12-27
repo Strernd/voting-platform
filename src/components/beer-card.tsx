@@ -12,24 +12,47 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { VotingDrawer } from "@/components/voting-drawer";
-import { Beer } from "@/lib/beer-data";
+import { BeerWithRegistration } from "@/lib/beer-data";
 import { ExternalLink } from "lucide-react";
 
 interface BeerCardProps {
-  beer: Beer;
+  beer: BeerWithRegistration;
   isRegistered: boolean;
-  hasVoted: boolean;
-  currentVoteBeerId?: string;
+  currentVoteIds: string[];
+  votingEnabled?: boolean;
 }
 
-
-export function BeerCard({ beer, isRegistered, hasVoted, currentVoteBeerId }: BeerCardProps) {
-  const isCurrentVote = currentVoteBeerId === beer.beerId;
+export function BeerCard({
+  beer,
+  isRegistered,
+  currentVoteIds,
+  votingEnabled = true,
+}: BeerCardProps) {
+  const isCurrentVote = currentVoteIds.includes(beer.beerId);
+  const voteWeight =
+    currentVoteIds.length > 0 ? (1 / currentVoteIds.length).toFixed(2) : null;
   
   return (
-    <Card className={`w-full ${isCurrentVote ? 'ring-2 ring-green-500 bg-green-950/30' : ''}`}>
+    <Card
+      className={`w-full ${isCurrentVote ? "ring-2 ring-green-500 bg-green-950/30" : ""}`}
+    >
       <CardContent className="p-3">
         <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                <span className="text-xl font-bold text-primary">
+                  {beer.startbahn}
+                </span>
+              </div>
+              {isCurrentVote && voteWeight && (
+                <div className="absolute -bottom-1 -right-1 bg-green-600 text-white text-xs px-1 rounded">
+                  {voteWeight}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex-1 min-w-0">
             <div className="mb-2">
               <Sheet>
@@ -47,6 +70,17 @@ export function BeerCard({ beer, isRegistered, hasVoted, currentVoteBeerId }: Be
                       {beer.description}
                     </SheetDescription>
                   </SheetHeader>
+                  <div className="mt-4 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Startbahn:
+                    </span>
+                    <Badge variant="outline" className="text-lg font-bold">
+                      {beer.startbahn}
+                    </Badge>
+                    {beer.reinheitsgebot && (
+                      <Badge className="bg-green-600">RHG</Badge>
+                    )}
+                  </div>
                   <div className="mt-6">
                     <Button asChild className="w-full">
                       <a
@@ -65,20 +99,23 @@ export function BeerCard({ beer, isRegistered, hasVoted, currentVoteBeerId }: Be
               <p className="text-xs text-muted-foreground">{beer.brewer}</p>
             </div>
 
-            <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-2 text-xs flex-wrap">
               <Badge className="border border-muted-foreground/30 bg-transparent text-foreground text-xs px-2 py-0.5">
                 {beer.style}
               </Badge>
+              {beer.reinheitsgebot && (
+                <Badge className="bg-green-600 text-xs px-2 py-0.5">RHG</Badge>
+              )}
               <span className="text-muted-foreground">{beer.alcohol}% ABV</span>
               <span className="text-muted-foreground">{beer.ibu} IBU</span>
             </div>
           </div>
 
-          <VotingDrawer 
-            beer={beer} 
-            isRegistered={isRegistered} 
-            hasVoted={hasVoted}
-            currentVoteBeerId={currentVoteBeerId}
+          <VotingDrawer
+            beer={beer}
+            isRegistered={isRegistered}
+            currentVoteIds={currentVoteIds}
+            votingEnabled={votingEnabled}
           />
         </div>
       </CardContent>

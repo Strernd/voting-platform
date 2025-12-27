@@ -1,67 +1,93 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { votes, beerRounds } from "@/db/schema";
+import { votes, beerRegistrations } from "@/db/schema";
 import { exampleBeers } from "../../beers/examples";
-import { sql, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const roundId = searchParams.get('roundId');
+    const roundId = searchParams.get("roundId");
 
-    let voteCountsRaw;
-    let roundBeerIds: Set<string> = new Set();
-    
-    if (roundId) {
-      // Get beers assigned to this round
-      const roundBeers = await db
-        .select({ beerId: beerRounds.beerId })
-        .from(beerRounds)
-        .where(eq(beerRounds.roundId, parseInt(roundId, 10)));
-      
-      roundBeerIds = new Set(roundBeers.map(rb => rb.beerId));
-      
-      // Get vote counts for specific round
-      voteCountsRaw = await db
-        .select({
-          beerId: votes.beerId,
-          count: sql<number>`count(*)`.as('count'),
-        })
-        .from(votes)
-        .where(eq(votes.roundId, parseInt(roundId, 10)))
-        .groupBy(votes.beerId);
-    } else {
-      // Get vote counts for all rounds (existing behavior)
-      voteCountsRaw = await db
-        .select({
-          beerId: votes.beerId,
-          count: sql<number>`count(*)`.as('count'),
-        })
-        .from(votes)
-        .groupBy(votes.beerId);
+    if (!roundId) {
+      return NextResponse.json(
+        { error: "roundId is required" },
+        { status: 400 }
+      );
     }
 
-    // Convert to a Map for easy lookup
-    const voteCounts = new Map(
-      voteCountsRaw.map(v => [v.beerId, v.count])
+    const parsedRoundId = parseInt(roundId, 10);
+
+    // Get all votes for this round
+    const allVotes = await db
+      .select({
+        voterId: votes.voterId,
+        beerId: votes.beerId,
+      })
+      .from(votes)
+      .where(eq(votes.roundId, parsedRoundId));
+
+    // Group votes by voterId to count how many votes each voter cast
+    const votesByVoter = new Map<string, string[]>();
+    for (const vote of allVotes) {
+      const existing = votesByVoter.get(vote.voterId) || [];
+      existing.push(vote.beerId);
+      votesByVoter.set(vote.voterId, existing);
+    }
+
+    // Calculate weighted votes per beer
+    const weightedVotes = new Map<string, number>();
+    const rawVotes = new Map<string, number>();
+
+    for (const [voterId, beerIds] of votesByVoter) {
+      const weight = 1 / beerIds.length;
+      for (const beerId of beerIds) {
+        // Weighted vote
+        const currentWeighted = weightedVotes.get(beerId) || 0;
+        weightedVotes.set(beerId, currentWeighted + weight);
+        // Raw vote count
+        const currentRaw = rawVotes.get(beerId) || 0;
+        rawVotes.set(beerId, currentRaw + 1);
+      }
+    }
+
+    // Get beer registrations for this round
+    const registrations = await db
+      .select()
+      .from(beerRegistrations)
+      .where(eq(beerRegistrations.roundId, parsedRoundId));
+
+    const registrationMap = new Map(
+      registrations.map((reg) => [
+        reg.beerId,
+        { startbahn: reg.startbahn, reinheitsgebot: reg.reinheitsgebot },
+      ])
     );
 
-    // Filter beers based on round assignment (if roundId is provided)
-    let filteredBeers = exampleBeers;
-    if (roundId && roundBeerIds.size > 0) {
-      filteredBeers = exampleBeers.filter(beer => roundBeerIds.has(beer.submission_id));
-    }
+    // Get registered beer IDs for this round
+    const registeredBeerIds = new Set(registrations.map((r) => r.beerId));
+
+    // Filter beers to only those registered in this round
+    const filteredBeers = exampleBeers.filter((beer) =>
+      registeredBeerIds.has(beer.submission_id)
+    );
 
     // Combine beer data with vote counts
-    const beersWithVotes = filteredBeers.map(beer => ({
-      id: beer.submission_id,
-      name: beer.beername,
-      brewer: beer.brewer,
-      style: beer.style,
-      votes: voteCounts.get(beer.submission_id) || 0,
-    }));
+    const beersWithVotes = filteredBeers.map((beer) => {
+      const reg = registrationMap.get(beer.submission_id);
+      return {
+        id: beer.submission_id,
+        name: beer.beername,
+        brewer: beer.brewer,
+        style: beer.style,
+        votes: Math.round((weightedVotes.get(beer.submission_id) || 0) * 100) / 100,
+        rawVotes: rawVotes.get(beer.submission_id) || 0,
+        startbahn: reg?.startbahn || 0,
+        reinheitsgebot: reg?.reinheitsgebot || false,
+      };
+    });
 
-    // Sort by vote count descending
+    // Sort by weighted vote count descending
     beersWithVotes.sort((a, b) => b.votes - a.votes);
 
     return NextResponse.json(beersWithVotes);
