@@ -1,8 +1,13 @@
 import { BeerList } from "@/components/beer-list";
-import { Card, CardContent } from "@/components/ui/card";
-import { getCurrentVotes, getActiveRound, isVotingEnabled } from "@/lib/actions";
+import { Badge } from "@/components/ui/badge";
+import {
+  getCurrentVotes,
+  getActiveRound,
+  isVotingEnabled,
+} from "@/lib/actions";
 import { getBeers } from "@/lib/beer-data";
 import { getVoterSession } from "@/lib/session";
+import { Beer, Star, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -16,79 +21,116 @@ export default async function Home() {
 
   return (
     <div className="dark min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-md">
-        <h1 className="text-2xl font-bold text-foreground mb-6">
-          {activeRound
-            ? `${activeRound.id}: ${activeRound.name}: Biere`
-            : "Keine aktive Runde"}
-        </h1>
-
-        {!votingEnabled && (
-          <Card className="mb-6 bg-yellow-950 border-yellow-800">
-            <CardContent className="px-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                <span className="font-medium text-yellow-100">
-                  Die Abstimmung ist derzeit geschlossen
-                </span>
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-gradient-to-b from-card to-background border-b border-border">
+        <div className="container mx-auto px-4 py-4 max-w-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <Beer className="h-5 w-5 text-primary-foreground" />
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card
-          className={`mb-6 ${
-            isRegistered
-              ? "bg-green-950 border-green-800"
-              : "bg-red-950 border-red-800"
-          }`}
-        >
-          <CardContent className="px-4">
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-3 h-3 rounded-full ${
-                  isRegistered ? "bg-green-400" : "bg-red-400"
-                }`}
-              />
-              <span
-                className={`font-medium ${
-                  isRegistered ? "text-green-100" : "text-red-100"
-                }`}
-              >
-                {isRegistered ? "Registriert" : "Nicht registriert"}
-              </span>
+              <div>
+                <h1 className="text-lg font-bold text-foreground">
+                  {activeRound ? activeRound.name : "Bier Voting"}
+                </h1>
+                {activeRound && (
+                  <p className="text-xs text-muted-foreground">
+                    Runde {activeRound.id}
+                  </p>
+                )}
+              </div>
             </div>
-            {!isRegistered && (
-              <p className="text-red-200 text-sm mt-2">
-                Scanne deinen QR-Code um dich zu registrieren.
-              </p>
-            )}
-          </CardContent>
-        </Card>
 
-        {currentVoteIds.length > 0 && (
-          <Card className="mb-6 bg-blue-950 border-blue-800">
-            <CardContent className="px-4">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-blue-100">
-                  Deine Stimmen: {currentVoteIds.length}
-                </span>
-                <span className="text-blue-200 text-sm">
-                  Gewichtung: {(1 / currentVoteIds.length).toFixed(2)} pro Bier
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Status Indicators */}
+            <div className="flex items-center gap-2">
+              {isRegistered ? (
+                <Badge
+                  variant="outline"
+                  className="bg-success/10 text-success border-success/30"
+                >
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Registriert
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="bg-destructive/10 text-destructive border-destructive/30"
+                >
+                  <XCircle className="h-3 w-3 mr-1" />
+                  Nicht registriert
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6 max-w-2xl">
+        {/* Voting Status Banner */}
+        {!votingEnabled && (
+          <div className="mb-6 p-4 rounded-lg bg-warning/10 border border-warning/30 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-warning shrink-0" />
+            <div>
+              <p className="font-medium text-warning">
+                Abstimmung geschlossen
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Die Abstimmung ist derzeit nicht aktiv.
+              </p>
+            </div>
+          </div>
         )}
 
-        <BeerList
-          beers={beers}
-          voterUuid={voterUuid}
-          isRegistered={isRegistered}
-          currentVoteIds={currentVoteIds}
-          votingEnabled={votingEnabled}
-        />
-      </div>
+        {/* Registration Prompt */}
+        {!isRegistered && (
+          <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+            <p className="text-sm text-muted-foreground">
+              Scanne deinen QR-Code um dich zu registrieren und abstimmen zu
+              konnen.
+            </p>
+          </div>
+        )}
+
+        {/* Vote Count & Weight Display */}
+        {currentVoteIds.length > 0 && (
+          <div className="mb-6 p-4 rounded-lg bg-primary/10 border border-primary/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-primary fill-primary" />
+                <span className="font-semibold text-primary">
+                  {currentVoteIds.length}{" "}
+                  {currentVoteIds.length === 1 ? "Stimme" : "Stimmen"}
+                </span>
+              </div>
+              <Badge variant="secondary" className="font-mono">
+                {(1 / currentVoteIds.length).toFixed(2)} Gewichtung
+              </Badge>
+            </div>
+          </div>
+        )}
+
+        {/* No Active Round */}
+        {!activeRound && (
+          <div className="text-center py-12">
+            <Beer className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Keine aktive Runde</h2>
+            <p className="text-muted-foreground">
+              Derzeit ist keine Abstimmungsrunde aktiv.
+            </p>
+          </div>
+        )}
+
+        {/* Beer List */}
+        {activeRound && (
+          <BeerList
+            beers={beers}
+            voterUuid={voterUuid}
+            isRegistered={isRegistered}
+            currentVoteIds={currentVoteIds}
+            votingEnabled={votingEnabled}
+          />
+        )}
+      </main>
     </div>
   );
 }

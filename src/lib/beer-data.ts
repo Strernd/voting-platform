@@ -91,3 +91,31 @@ export async function getBeers(): Promise<BeerWithRegistration[]> {
 
   return beersWithRegistration;
 }
+
+export async function getBeersByRound(roundId: number): Promise<BeerWithRegistration[]> {
+  const allBeers = await getAllBeers();
+  const registrations = await getRegisteredBeers();
+
+  // Filter to beers registered for the specified round
+  const roundRegistrations = registrations.filter(
+    (reg) => reg.roundId === roundId
+  );
+
+  const registrationMap = new Map(
+    roundRegistrations.map((reg) => [reg.beerId, reg])
+  );
+
+  const beersWithRegistration = allBeers
+    .filter((beer) => registrationMap.has(beer.beerId))
+    .map((beer) => {
+      const reg = registrationMap.get(beer.beerId)!;
+      return {
+        ...beer,
+        startbahn: reg.startbahn,
+        reinheitsgebot: reg.reinheitsgebot,
+      };
+    })
+    .sort((a, b) => a.startbahn - b.startbahn);
+
+  return beersWithRegistration;
+}

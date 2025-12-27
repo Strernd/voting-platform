@@ -1,19 +1,8 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { VotingDrawer } from "@/components/voting-drawer";
 import { BeerWithRegistration } from "@/lib/beer-data";
-import { ExternalLink } from "lucide-react";
+import { Star, Leaf } from "lucide-react";
 
 interface BeerCardProps {
   beer: BeerWithRegistration;
@@ -31,94 +20,77 @@ export function BeerCard({
   const isCurrentVote = currentVoteIds.includes(beer.beerId);
   const voteWeight =
     currentVoteIds.length > 0 ? (1 / currentVoteIds.length).toFixed(2) : null;
-  
+
   return (
-    <Card
-      className={`w-full ${isCurrentVote ? "ring-2 ring-green-500 bg-green-950/30" : ""}`}
+    <div
+      className={`w-full rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-primary/10 ${
+        isCurrentVote
+          ? "ring-2 ring-primary shadow-lg shadow-primary/20 bg-primary/5"
+          : "hover:border-primary/30"
+      }`}
     >
-      <CardContent className="p-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
-                <span className="text-xl font-bold text-primary">
-                  {beer.startbahn}
+      <div className="flex">
+        {/* Startbahn Number - Hero Element */}
+        <div
+          className={`flex flex-col items-center justify-center px-4 min-w-[70px] ${
+            isCurrentVote
+              ? "bg-primary text-primary-foreground"
+              : "bg-primary/10"
+          }`}
+        >
+          <span
+            className={`text-3xl font-bold ${isCurrentVote ? "" : "text-primary"}`}
+          >
+            {beer.startbahn}
+          </span>
+          {isCurrentVote && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <Star className="h-3 w-3 fill-current" />
+              <span className="text-xs font-medium">{voteWeight}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Beer Info */}
+        <div className="flex-1 py-2 px-3 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-base leading-tight line-clamp-2">
+                {beer.name}
+              </h3>
+
+              <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                {beer.brewer}
+              </p>
+
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">
+                  {beer.style.includes(".") ? beer.style.split(".")[1].trim() : beer.style}
+                </span>
+                {beer.reinheitsgebot && (
+                  <span className="text-xs text-success bg-success/10 px-2 py-0.5 rounded flex items-center gap-1">
+                    <Leaf className="h-3 w-3" />
+                    RHG
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {beer.alcohol}%
                 </span>
               </div>
-              {isCurrentVote && voteWeight && (
-                <div className="absolute -bottom-1 -right-1 bg-green-600 text-white text-xs px-1 rounded">
-                  {voteWeight}
-                </div>
-              )}
+            </div>
+
+            {/* Vote Button Area */}
+            <div className="shrink-0 pl-2">
+              <VotingDrawer
+                beer={beer}
+                isRegistered={isRegistered}
+                currentVoteIds={currentVoteIds}
+                votingEnabled={votingEnabled}
+              />
             </div>
           </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="mb-2">
-              <Sheet>
-                <SheetTrigger asChild>
-                  <button className="text-left">
-                    <h3 className="font-semibold text-sm truncate hover:text-blue-400 transition-colors">
-                      {beer.name}
-                    </h3>
-                  </button>
-                </SheetTrigger>
-                <SheetContent className="px-6 border-border">
-                  <SheetHeader>
-                    <SheetTitle>{beer.name}</SheetTitle>
-                    <SheetDescription className="text-left">
-                      {beer.description}
-                    </SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-4 flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Startbahn:
-                    </span>
-                    <Badge variant="outline" className="text-lg font-bold">
-                      {beer.startbahn}
-                    </Badge>
-                    {beer.reinheitsgebot && (
-                      <Badge className="bg-green-600">RHG</Badge>
-                    )}
-                  </div>
-                  <div className="mt-6">
-                    <Button asChild className="w-full">
-                      <a
-                        href={beer.recipeLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Rezept ansehen
-                      </a>
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
-              <p className="text-xs text-muted-foreground">{beer.brewer}</p>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs flex-wrap">
-              <Badge className="border border-muted-foreground/30 bg-transparent text-foreground text-xs px-2 py-0.5">
-                {beer.style}
-              </Badge>
-              {beer.reinheitsgebot && (
-                <Badge className="bg-green-600 text-xs px-2 py-0.5">RHG</Badge>
-              )}
-              <span className="text-muted-foreground">{beer.alcohol}% ABV</span>
-              <span className="text-muted-foreground">{beer.ibu} IBU</span>
-            </div>
-          </div>
-
-          <VotingDrawer
-            beer={beer}
-            isRegistered={isRegistered}
-            currentVoteIds={currentVoteIds}
-            votingEnabled={votingEnabled}
-          />
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

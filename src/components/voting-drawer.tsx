@@ -12,10 +12,12 @@ import { toggleVoteForBeer } from "@/lib/actions";
 import { BeerWithRegistration } from "@/lib/beer-data";
 import {
   ChevronRight,
-  ThumbsUp,
-  ThumbsDown,
+  Star,
+  Minus,
   CheckCircle,
   XCircle,
+  Leaf,
+  ExternalLink,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -61,7 +63,7 @@ export function VotingDrawer({
     if (!isRegistered) {
       setVoteResult({
         success: false,
-        message: "Du musst registriert sein, um zu wahlen",
+        message: "Du musst registriert sein, um zu wählen",
       });
       return;
     }
@@ -76,7 +78,7 @@ export function VotingDrawer({
     } catch (error) {
       setVoteResult({
         success: false,
-        message: "Ein Fehler ist beim Wahlen aufgetreten",
+        message: "Ein Fehler ist beim Wählen aufgetreten",
       });
     } finally {
       setIsVoting(false);
@@ -93,121 +95,163 @@ export function VotingDrawer({
     <Drawer>
       <DrawerTrigger asChild>
         <Button
-          variant="outline"
+          variant="ghost"
           size="default"
-          className="h-10 w-12 px-3 py-2 shrink-0 bg-transparent flex items-center justify-center"
+          className={`h-12 w-12 px-3 py-2 shrink-0 flex items-center justify-center rounded-lg transition-colors ${
+            isCurrentVote
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "hover:bg-primary/10"
+          }`}
           onClick={resetVoteResult}
         >
-          <ChevronRight className="h-5 w-5" />
+          {isCurrentVote ? (
+            <Star className="h-5 w-5 fill-current" />
+          ) : (
+            <ChevronRight className="h-5 w-5" />
+          )}
         </Button>
       </DrawerTrigger>
-      <DrawerContent className="border-border">
+      <DrawerContent className="border-border bg-card">
         <DrawerTitle className="sr-only">{beer.name}</DrawerTitle>
-        <div className="p-6">
+        <div className="p-6 max-w-lg mx-auto w-full">
+          {/* Beer Header */}
           <div className="mb-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-14 h-14 rounded-lg bg-primary/20 flex items-center justify-center">
-                <span className="text-2xl font-bold text-primary">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                <span className="text-3xl font-bold text-primary-foreground">
                   {beer.startbahn}
                 </span>
               </div>
-              <div>
-                <h2 className="text-xl font-bold">{beer.name}</h2>
-                <p className="text-muted-foreground text-sm">{beer.brewer}</p>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-bold leading-tight">{beer.name}</h2>
+                <p className="text-muted-foreground">{beer.brewer}</p>
               </div>
             </div>
-            <p className="text-muted-foreground text-sm mb-4">
+
+            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
               {beer.description}
             </p>
 
-            <div className="flex items-center gap-3 text-sm mb-6 flex-wrap">
-              <Badge className="border border-muted-foreground/30 bg-transparent text-foreground text-xs px-2 py-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-sm">
                 {beer.style}
               </Badge>
+              <Badge variant="secondary">{beer.alcohol}% ABV</Badge>
+              <Badge variant="secondary">{beer.ibu} IBU</Badge>
               {beer.reinheitsgebot && (
-                <Badge className="bg-green-600 text-xs px-2 py-0.5">RHG</Badge>
+                <Badge className="bg-success text-success-foreground">
+                  <Leaf className="h-3 w-3 mr-1" />
+                  RHG
+                </Badge>
               )}
-              <span className="text-muted-foreground">{beer.alcohol}% ABV</span>
-              <span className="text-muted-foreground">{beer.ibu} IBU</span>
             </div>
           </div>
 
+          {/* Vote Result State */}
           {voteResult ? (
-            <div className="text-center">
+            <div className="space-y-4">
               <div
-                className={`inline-flex items-center gap-2 p-4 rounded-lg mb-4 ${
+                className={`flex items-center gap-3 p-4 rounded-xl ${
                   voteResult.success
-                    ? "bg-green-950 border border-green-800"
-                    : "bg-red-950 border border-red-800"
+                    ? "bg-success/10 border border-success/30"
+                    : "bg-destructive/10 border border-destructive/30"
                 }`}
               >
                 {voteResult.success ? (
-                  <CheckCircle className="h-5 w-5 text-green-400" />
+                  <CheckCircle className="h-6 w-6 text-success shrink-0" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-red-400" />
+                  <XCircle className="h-6 w-6 text-destructive shrink-0" />
                 )}
-                <span
-                  className={
-                    voteResult.success ? "text-green-100" : "text-red-100"
-                  }
-                >
-                  {voteResult.message}
-                </span>
+                <div>
+                  <span
+                    className={`font-medium ${
+                      voteResult.success ? "text-success" : "text-destructive"
+                    }`}
+                  >
+                    {voteResult.message}
+                  </span>
+                  {voteResult.success && localVoteIds.length > 0 && (
+                    <p className="text-muted-foreground text-sm mt-1">
+                      {localVoteIds.length}{" "}
+                      {localVoteIds.length === 1 ? "Stimme" : "Stimmen"} ·
+                      Gewichtung: {voteWeight} pro Bier
+                    </p>
+                  )}
+                </div>
               </div>
-
-              {voteResult.success && localVoteIds.length > 0 && (
-                <p className="text-muted-foreground text-sm mb-4">
-                  Aktuelle Stimmen: {localVoteIds.length} (Gewichtung:{" "}
-                  {voteWeight} pro Bier)
-                </p>
-              )}
 
               {!voteResult.success && (
                 <Button
                   onClick={handleVote}
                   disabled={!canVote || isVoting}
-                  className="w-full"
+                  className="w-full h-12 text-base"
                 >
                   {isVoting ? "..." : "Erneut versuchen"}
                 </Button>
               )}
+
+              {/* Recipe Link */}
+              <Button
+                variant="outline"
+                className="w-full"
+                asChild
+              >
+                <a
+                  href={beer.recipeLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Rezept ansehen
+                </a>
+              </Button>
             </div>
           ) : (
-            <div className="text-center">
+            <div className="space-y-4">
+              {/* Current Vote Status */}
               {isCurrentVote && (
-                <div className="mb-4 p-3 rounded-lg bg-green-950 border border-green-800">
-                  <div className="flex items-center gap-2 justify-center">
-                    <CheckCircle className="h-5 w-5 text-green-400" />
-                    <span className="text-green-100 font-medium">
-                      Du hast fur dieses Bier gestimmt
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/10 border border-primary/30">
+                  <Star className="h-6 w-6 text-primary fill-primary shrink-0" />
+                  <div>
+                    <span className="font-medium text-primary">
+                      Du hast für dieses Bier gestimmt
+                    </span>
+                    <p className="text-muted-foreground text-sm">
+                      Gewichtung: {voteWeight}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Vote Weight Preview */}
+              {voteCount > 0 && !isCurrentVote && (
+                <div className="p-4 rounded-xl bg-secondary border border-border">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Aktuelle Stimmen: {voteCount}
+                    </span>
+                    <span className="font-medium">
+                      Neue Gewichtung: {newVoteWeight}
                     </span>
                   </div>
-                  <p className="text-green-200 text-sm mt-1">
-                    Aktuelle Gewichtung: {voteWeight}
-                  </p>
                 </div>
               )}
 
-              {voteCount > 0 && (
-                <div className="mb-4 p-3 rounded-lg bg-blue-950 border border-blue-800">
-                  <p className="text-blue-100 text-sm">
-                    Deine Stimmen: {voteCount} | Neue Gewichtung pro Bier:{" "}
-                    {newVoteWeight}
-                  </p>
-                </div>
-              )}
-
+              {/* Vote Button */}
               <Button
                 onClick={handleVote}
                 disabled={!canVote || isVoting}
-                className="w-full flex items-center gap-2"
+                className={`w-full h-14 text-base font-semibold ${
+                  isCurrentVote
+                    ? "bg-destructive hover:bg-destructive/90"
+                    : "bg-primary hover:bg-primary/90"
+                }`}
                 size="lg"
-                variant={isCurrentVote ? "destructive" : "default"}
               >
                 {isCurrentVote ? (
-                  <ThumbsDown className="h-5 w-5" />
+                  <Minus className="h-5 w-5 mr-2" />
                 ) : (
-                  <ThumbsUp className="h-5 w-5" />
+                  <Star className="h-5 w-5 mr-2" />
                 )}
                 {isVoting
                   ? "..."
@@ -217,21 +261,38 @@ export function VotingDrawer({
                       ? "Registrierung erforderlich"
                       : isCurrentVote
                         ? "Stimme entfernen"
-                        : "Stimme hinzufugen"}
+                        : "Stimme hinzufügen"}
               </Button>
 
+              {/* Status Messages */}
               {!votingEnabled && (
-                <p className="text-yellow-300 text-sm mt-2">
+                <p className="text-center text-warning text-sm">
                   Die Abstimmung ist derzeit geschlossen
                 </p>
               )}
 
               {votingEnabled && !isRegistered && (
-                <p className="text-red-300 text-sm mt-2">
-                  Du musst dich mit einem gultigen Code registrieren, um zu
-                  wahlen
+                <p className="text-center text-destructive text-sm">
+                  Du musst dich mit einem gültigen Code registrieren, um zu
+                  wählen
                 </p>
               )}
+
+              {/* Recipe Link */}
+              <Button
+                variant="outline"
+                className="w-full"
+                asChild
+              >
+                <a
+                  href={beer.recipeLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Rezept ansehen
+                </a>
+              </Button>
             </div>
           )}
         </div>

@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   getCompetitionSettings,
   updateCompetitionSettings,
 } from "@/lib/actions";
+import { Play, Pause, Hash, Save } from "lucide-react";
 import type { CompetitionSettings as CompetitionSettingsType } from "@/db/schema";
 
 export function CompetitionSettings() {
@@ -76,12 +76,16 @@ export function CompetitionSettings() {
   };
 
   if (loading) {
-    return <div className="text-center py-6">Laden...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-muted-foreground">Laden...</div>
+      </div>
+    );
   }
 
   if (!settings) {
     return (
-      <div className="text-center py-6 text-muted-foreground">
+      <div className="text-center py-12 text-muted-foreground">
         Fehler beim Laden der Einstellungen
       </div>
     );
@@ -89,80 +93,115 @@ export function CompetitionSettings() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Abstimmungsstatus</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
+      {/* Voting Status Card - Prominent */}
+      <Card
+        className={`border-2 ${
+          settings.votingEnabled
+            ? "border-success/50 bg-success/5"
+            : "border-muted"
+        }`}
+      >
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
-              <Badge
-                variant={settings.votingEnabled ? "default" : "secondary"}
-                className={
+              <div
+                className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
                   settings.votingEnabled
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-red-600 hover:bg-red-700"
-                }
+                    ? "bg-success text-success-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
               >
-                {settings.votingEnabled ? "Aktiv" : "Geschlossen"}
-              </Badge>
-              <span className="text-muted-foreground">
-                {settings.votingEnabled
-                  ? "Die Abstimmung ist derzeit aktiv. Benutzer konnen Stimmen abgeben."
-                  : "Die Abstimmung ist geschlossen. Benutzer konnen keine Stimmen abgeben."}
-              </span>
+                {settings.votingEnabled ? (
+                  <Play className="h-8 w-8" />
+                ) : (
+                  <Pause className="h-8 w-8" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">
+                  {settings.votingEnabled
+                    ? "Abstimmung ist aktiv"
+                    : "Abstimmung ist pausiert"}
+                </h2>
+                <p className="text-muted-foreground">
+                  {settings.votingEnabled
+                    ? "Benutzer können Stimmen abgeben."
+                    : "Benutzer können keine Stimmen abgeben."}
+                </p>
+              </div>
             </div>
+
             <Button
               onClick={handleToggleVoting}
               disabled={updating}
-              variant={settings.votingEnabled ? "destructive" : "default"}
               size="lg"
+              className={`h-14 px-8 text-lg font-semibold ${
+                settings.votingEnabled
+                  ? "bg-destructive hover:bg-destructive/90"
+                  : "bg-success hover:bg-success/90 text-success-foreground"
+              }`}
             >
-              {updating
-                ? "..."
-                : settings.votingEnabled
-                  ? "Abstimmung stoppen"
-                  : "Abstimmung starten"}
+              {settings.votingEnabled ? (
+                <>
+                  <Pause className="h-5 w-5 mr-2" />
+                  {updating ? "..." : "Abstimmung stoppen"}
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  {updating ? "..." : "Abstimmung starten"}
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
       </Card>
 
+      {/* Startbahn Settings */}
       <Card>
         <CardHeader>
-          <CardTitle>Startbahn-Einstellungen</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2">
-                Anzahl der Startbahnen
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  min="1"
-                  max="200"
-                  value={startbahnCount}
-                  onChange={(e) => setStartbahnCount(e.target.value)}
-                  className="w-32"
-                />
-                <Button
-                  onClick={handleUpdateStartbahnCount}
-                  disabled={
-                    updating ||
-                    parseInt(startbahnCount) === settings.startbahnCount
-                  }
-                  variant="outline"
-                >
-                  Speichern
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Aktuell: {settings.startbahnCount} Startbahnen verfugbar
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Hash className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Startbahn-Einstellungen</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Anzahl verfügbarer Startbahn-Nummern pro Runde
               </p>
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-4">
+            <div className="flex-1 max-w-xs">
+              <label className="block text-sm font-medium mb-2">
+                Anzahl der Startbahnen
+              </label>
+              <Input
+                type="number"
+                min="1"
+                max="200"
+                value={startbahnCount}
+                onChange={(e) => setStartbahnCount(e.target.value)}
+                className="h-12 text-lg font-medium"
+              />
+            </div>
+            <Button
+              onClick={handleUpdateStartbahnCount}
+              disabled={
+                updating ||
+                parseInt(startbahnCount) === settings.startbahnCount
+              }
+              className="h-12"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Speichern
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-3">
+            Aktuell: <span className="font-medium">{settings.startbahnCount}</span> Startbahnen verfügbar (1-{settings.startbahnCount})
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -41,6 +41,15 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Craft brewery custom colors */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-gold: var(--gold);
+  --color-silver: var(--silver);
+  --color-bronze: var(--bronze);
 }
 
 :root {
@@ -79,37 +88,51 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Craft Brewery Palette - Warm & Artisanal */
+  --background: oklch(0.16 0.02 55);           /* warm dark brown */
+  --foreground: oklch(0.93 0.02 85);           /* cream/off-white */
+  --card: oklch(0.22 0.025 50);                /* lighter warm brown */
+  --card-foreground: oklch(0.93 0.02 85);
+  --popover: oklch(0.20 0.02 50);
+  --popover-foreground: oklch(0.93 0.02 85);
+  --primary: oklch(0.75 0.16 75);              /* amber/gold - beer color */
+  --primary-foreground: oklch(0.18 0.03 50);   /* dark brown for contrast */
+  --secondary: oklch(0.28 0.03 55);            /* warm dark accent */
+  --secondary-foreground: oklch(0.90 0.02 80);
+  --muted: oklch(0.26 0.02 50);                /* warm muted brown */
+  --muted-foreground: oklch(0.65 0.03 70);     /* warm gray */
+  --accent: oklch(0.60 0.14 55);               /* copper/bronze */
+  --accent-foreground: oklch(0.95 0.02 85);
+  --destructive: oklch(0.60 0.20 25);          /* warm red */
+  --border: oklch(0.35 0.03 55 / 50%);         /* warm border */
+  --input: oklch(0.25 0.02 50);                /* input background */
+  --ring: oklch(0.75 0.16 75);                 /* amber ring */
+
+  /* Chart colors - warm palette */
+  --chart-1: oklch(0.75 0.16 75);              /* amber */
+  --chart-2: oklch(0.60 0.14 55);              /* copper */
+  --chart-3: oklch(0.55 0.12 140);             /* warm green */
+  --chart-4: oklch(0.65 0.10 35);              /* warm orange */
+  --chart-5: oklch(0.50 0.08 20);              /* warm red-brown */
+
+  /* Sidebar - warm tones */
+  --sidebar: oklch(0.18 0.025 50);
+  --sidebar-foreground: oklch(0.93 0.02 85);
+  --sidebar-primary: oklch(0.75 0.16 75);
+  --sidebar-primary-foreground: oklch(0.18 0.03 50);
+  --sidebar-accent: oklch(0.28 0.03 55);
+  --sidebar-accent-foreground: oklch(0.93 0.02 85);
+  --sidebar-border: oklch(0.35 0.03 55 / 30%);
+  --sidebar-ring: oklch(0.75 0.16 75);
+
+  /* Custom craft colors */
+  --success: oklch(0.60 0.15 145);             /* warm green */
+  --success-foreground: oklch(0.95 0.02 85);
+  --warning: oklch(0.70 0.15 85);              /* warm yellow */
+  --warning-foreground: oklch(0.20 0.03 50);
+  --gold: oklch(0.80 0.14 85);                 /* bright gold for rank 1 */
+  --silver: oklch(0.70 0.02 250);              /* silver for rank 2 */
+  --bronze: oklch(0.55 0.10 50);               /* bronze for rank 3 */
 }
 
 @layer base {

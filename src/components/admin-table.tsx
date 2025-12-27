@@ -12,6 +12,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getRounds } from "@/lib/actions";
+import { Trophy, Medal, Award, Leaf, Monitor, Printer } from "lucide-react";
+import Link from "next/link";
 import type { Round } from "@/db/schema";
 
 interface BeerWithVotes {
@@ -25,22 +27,53 @@ interface BeerWithVotes {
   reinheitsgebot: boolean;
 }
 
+interface BeerWithPercentage extends BeerWithVotes {
+  percentage: number;
+  roundId: number;
+  roundName: string;
+}
+
+function RankBadge({ rank }: { rank: number }) {
+  if (rank === 1) {
+    return (
+      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gold/20">
+        <Trophy className="h-4 w-4 text-gold" />
+      </div>
+    );
+  }
+  if (rank === 2) {
+    return (
+      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-silver/20">
+        <Medal className="h-4 w-4 text-silver" />
+      </div>
+    );
+  }
+  if (rank === 3) {
+    return (
+      <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-bronze/20">
+        <Award className="h-4 w-4 text-bronze" />
+      </div>
+    );
+  }
+  return (
+    <span className="inline-flex items-center justify-center w-8 h-8 text-muted-foreground font-medium">
+      {rank}
+    </span>
+  );
+}
+
 export function AdminTable() {
   const [rounds, setRounds] = useState<Round[]>([]);
   const [beersData, setBeersData] = useState<Map<number, BeerWithVotes[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("overall");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const roundsData = await getRounds();
         setRounds(roundsData);
-        
-        // Set initial active tab to the active round or first round
-        const activeRound = roundsData.find(r => r.active);
-        setActiveTab(activeRound ? activeRound.id.toString() : roundsData[0]?.id.toString() || "");
 
         // Fetch beer data for each round
         const beersMap = new Map<number, BeerWithVotes[]>();
@@ -91,65 +124,247 @@ export function AdminTable() {
     );
   }
 
-  const BeerTable = ({ beers }: { beers: BeerWithVotes[] }) => {
+  // Calculate overall ranking by percentage across all rounds
+  const overallRanking: BeerWithPercentage[] = [];
+
+  rounds.forEach((round) => {
+    const beers = beersData.get(round.id) || [];
     const totalVotes = beers.reduce((sum, beer) => sum + beer.votes, 0);
-    const totalRawVotes = beers.reduce((sum, beer) => sum + beer.rawVotes, 0);
+
+    beers.forEach((beer) => {
+      const percentage = totalVotes > 0 ? (beer.votes / totalVotes) * 100 : 0;
+      overallRanking.push({
+        ...beer,
+        percentage,
+        roundId: round.id,
+        roundName: round.name,
+      });
+    });
+  });
+
+  // Sort by percentage descending
+  overallRanking.sort((a, b) => b.percentage - a.percentage);
+
+  const OverallTable = () => {
+    const maxPercentage = Math.max(...overallRanking.map((b) => b.percentage), 1);
 
     return (
-      <div className="rounded-md border">
+      <div className="rounded-xl border border-border overflow-hidden bg-card">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60px]">Startbahn</TableHead>
-              <TableHead className="w-[250px]">Bier</TableHead>
-              <TableHead className="w-[150px]">Brauerei</TableHead>
-              <TableHead className="w-[60px]">RHG</TableHead>
-              <TableHead className="text-right w-[120px]">
-                Gewichtete Punkte
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="w-[50px] text-center">#</TableHead>
+              <TableHead className="w-[70px] text-center">Startbahn</TableHead>
+              <TableHead className="min-w-[200px]">Bier</TableHead>
+              <TableHead className="w-[120px]">Runde</TableHead>
+              <TableHead className="w-[150px] hidden md:table-cell">
+                Brauerei
               </TableHead>
-              <TableHead className="text-right w-[80px]">Stimmen</TableHead>
+              <TableHead className="w-[60px] text-center hidden sm:table-cell">
+                RHG
+              </TableHead>
+              <TableHead className="text-right w-[150px]">Anteil in Runde</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow className="bg-muted/50 font-medium">
-              <TableCell colSpan={4} className="font-bold">
+            {overallRanking.map((beer, index) => {
+              const rank = index + 1;
+              const barWidth = (beer.percentage / maxPercentage) * 100;
+
+              return (
+                <TableRow
+                  key={`${beer.roundId}-${beer.id}`}
+                  className={`${
+                    rank <= 3
+                      ? "bg-gradient-to-r from-transparent"
+                      : ""
+                  } ${rank === 1 ? "to-gold/5" : rank === 2 ? "to-silver/5" : rank === 3 ? "to-bronze/5" : ""}`}
+                >
+                  <TableCell className="text-center">
+                    <RankBadge rank={rank} />
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                      <span className="text-lg font-bold text-primary">
+                        {beer.startbahn}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-semibold">{beer.name}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-1">
+                      {beer.style}
+                    </div>
+                    <div className="md:hidden text-xs text-muted-foreground mt-1">
+                      {beer.brewer}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {beer.roundName}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
+                    {beer.brewer}
+                  </TableCell>
+                  <TableCell className="text-center hidden sm:table-cell">
+                    {beer.reinheitsgebot && (
+                      <Badge className="bg-success/10 text-success border-success/30">
+                        <Leaf className="h-3 w-3" />
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="font-bold text-lg">
+                          {beer.percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            rank === 1
+                              ? "bg-gold"
+                              : rank === 2
+                                ? "bg-silver"
+                                : rank === 3
+                                  ? "bg-bronze"
+                                  : "bg-primary"
+                          }`}
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {overallRanking.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            Keine Biere registriert
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const BeerTable = ({ beers }: { beers: BeerWithVotes[] }) => {
+    const totalVotes = beers.reduce((sum, beer) => sum + beer.votes, 0);
+    const totalRawVotes = beers.reduce((sum, beer) => sum + beer.rawVotes, 0);
+    const maxVotes = Math.max(...beers.map((b) => b.votes), 1);
+
+    return (
+      <div className="rounded-xl border border-border overflow-hidden bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="w-[50px] text-center">#</TableHead>
+              <TableHead className="w-[70px] text-center">Startbahn</TableHead>
+              <TableHead className="min-w-[200px]">Bier</TableHead>
+              <TableHead className="w-[150px] hidden md:table-cell">
+                Brauerei
+              </TableHead>
+              <TableHead className="w-[60px] text-center hidden sm:table-cell">
+                RHG
+              </TableHead>
+              <TableHead className="text-right w-[180px]">Punkte</TableHead>
+              <TableHead className="text-right w-[80px] hidden sm:table-cell">
+                Stimmen
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Summary Row */}
+            <TableRow className="bg-primary/5 hover:bg-primary/10 border-b-2 border-primary/20">
+              <TableCell colSpan={2} className="font-bold text-primary">
                 Gesamt
               </TableCell>
-              <TableCell className="text-right font-bold">
+              <TableCell colSpan={2} className="hidden md:table-cell" />
+              <TableCell className="hidden sm:table-cell" />
+              <TableCell className="text-right font-bold text-primary text-lg">
                 {totalVotes.toFixed(2)}
               </TableCell>
-              <TableCell className="text-right font-bold">
+              <TableCell className="text-right font-bold text-muted-foreground hidden sm:table-cell">
                 {totalRawVotes}
               </TableCell>
             </TableRow>
 
             {beers.map((beer, index) => {
+              const rank = index + 1;
               const percentage =
                 totalVotes > 0 ? (beer.votes / totalVotes) * 100 : 0;
+              const barWidth = (beer.votes / maxVotes) * 100;
+
               return (
-                <TableRow key={beer.id}>
-                  <TableCell className="font-bold text-lg">
-                    {beer.startbahn}
+                <TableRow
+                  key={beer.id}
+                  className={`${
+                    rank <= 3
+                      ? "bg-gradient-to-r from-transparent"
+                      : ""
+                  } ${rank === 1 ? "to-gold/5" : rank === 2 ? "to-silver/5" : rank === 3 ? "to-bronze/5" : ""}`}
+                >
+                  <TableCell className="text-center">
+                    <RankBadge rank={rank} />
                   </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{beer.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {beer.style}
+                  <TableCell className="text-center">
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                      <span className="text-lg font-bold text-primary">
+                        {beer.startbahn}
+                      </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{beer.brewer}</TableCell>
                   <TableCell>
+                    <div className="font-semibold">{beer.name}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-1">
+                      {beer.style}
+                    </div>
+                    <div className="md:hidden text-xs text-muted-foreground mt-1">
+                      {beer.brewer}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground hidden md:table-cell">
+                    {beer.brewer}
+                  </TableCell>
+                  <TableCell className="text-center hidden sm:table-cell">
                     {beer.reinheitsgebot && (
-                      <Badge className="bg-green-600 text-xs">Ja</Badge>
+                      <Badge className="bg-success/10 text-success border-success/30">
+                        <Leaf className="h-3 w-3" />
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <span className="font-semibold">{beer.votes.toFixed(2)}</span>
-                    <span className="text-muted-foreground text-xs ml-1">
-                      ({percentage.toFixed(1)}%)
-                    </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="font-bold text-lg">
+                          {beer.votes.toFixed(2)}
+                        </span>
+                        <span className="text-muted-foreground text-xs w-12 text-right">
+                          {percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            rank === 1
+                              ? "bg-gold"
+                              : rank === 2
+                                ? "bg-silver"
+                                : rank === 3
+                                  ? "bg-bronze"
+                                  : "bg-primary"
+                          }`}
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell className="text-right text-muted-foreground hidden sm:table-cell">
                     {beer.rawVotes}
                   </TableCell>
                 </TableRow>
@@ -168,17 +383,43 @@ export function AdminTable() {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+      <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground flex-wrap">
+        <TabsTrigger value="overall" className="inline-flex items-center gap-2">
+          <Trophy className="h-4 w-4" />
+          Gesamt
+        </TabsTrigger>
         {rounds.map((round) => (
           <TabsTrigger key={round.id} value={round.id.toString()} className="inline-flex items-center gap-2">
             {round.id}: {round.name}
-            {round.active && <Badge variant="secondary" className="text-xs">Active</Badge>}
+            {round.active && <Badge variant="secondary" className="text-xs">Aktiv</Badge>}
           </TabsTrigger>
         ))}
       </TabsList>
-      
+
+      <TabsContent value="overall">
+        <OverallTable />
+      </TabsContent>
+
       {rounds.map((round) => (
         <TabsContent key={round.id} value={round.id.toString()}>
+          <div className="mb-4 flex items-center justify-end gap-2">
+            <Link
+              href={`/display/${round.id}`}
+              target="_blank"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Monitor className="h-4 w-4" />
+              TV-Anzeige
+            </Link>
+            <Link
+              href={`/display/${round.id}/print`}
+              target="_blank"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Printer className="h-4 w-4" />
+              Drucken
+            </Link>
+          </div>
           <BeerTable beers={beersData.get(round.id) || []} />
         </TabsContent>
       ))}
