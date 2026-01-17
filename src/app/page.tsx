@@ -7,7 +7,7 @@ import {
 } from "@/lib/actions";
 import { getBeers } from "@/lib/beer-data";
 import { getVoterSession } from "@/lib/session";
-import { Beer, Star, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { Beer, Star, AlertCircle, CheckCircle2, XCircle, Trophy } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +15,12 @@ export default async function Home() {
   const beers = await getBeers();
   const voterUuid = await getVoterSession();
   const isRegistered = !!voterUuid;
-  const currentVoteIds = await getCurrentVotes();
+  const currentVotes = await getCurrentVotes();
   const activeRound = await getActiveRound();
   const votingEnabled = await isVotingEnabled();
+
+  const bestBeerVoteIds = currentVotes.bestBeer;
+  const presentationVoteIds = currentVotes.presentation;
 
   return (
     <div className="dark min-h-screen bg-background">
@@ -92,20 +95,36 @@ export default async function Home() {
         )}
 
         {/* Vote Count & Weight Display */}
-        {currentVoteIds.length > 0 && (
-          <div className="mb-6 p-4 rounded-lg bg-primary/10 border border-primary/30">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Star className="h-5 w-5 text-primary fill-primary" />
-                <span className="font-semibold text-primary">
-                  {currentVoteIds.length}{" "}
-                  {currentVoteIds.length === 1 ? "Stimme" : "Stimmen"}
-                </span>
+        {(bestBeerVoteIds.length > 0 || presentationVoteIds.length > 0) && (
+          <div className="mb-6 space-y-2">
+            {/* Best Beer Votes */}
+            {bestBeerVoteIds.length > 0 && (
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-5 w-5 text-primary fill-primary" />
+                    <span className="font-semibold text-primary">
+                      Bestes Bier: {bestBeerVoteIds.length}{" "}
+                      {bestBeerVoteIds.length === 1 ? "Stimme" : "Stimmen"}
+                    </span>
+                  </div>
+                  <Badge variant="secondary" className="font-mono">
+                    {(1 / bestBeerVoteIds.length).toFixed(2)} Gewichtung
+                  </Badge>
+                </div>
               </div>
-              <Badge variant="secondary" className="font-mono">
-                {(1 / currentVoteIds.length).toFixed(2)} Gewichtung
-              </Badge>
-            </div>
+            )}
+            {/* Presentation Vote */}
+            {presentationVoteIds.length > 0 && (
+              <div className="p-4 rounded-lg bg-gold/10 border border-gold/30">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-gold fill-gold" />
+                  <span className="font-semibold text-gold">
+                    Schaumkrönchen: 1/1
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -126,7 +145,8 @@ export default async function Home() {
             beers={beers}
             voterUuid={voterUuid}
             isRegistered={isRegistered}
-            currentVoteIds={currentVoteIds}
+            bestBeerVoteIds={bestBeerVoteIds}
+            presentationVoteIds={presentationVoteIds}
             votingEnabled={votingEnabled}
           />
         )}

@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions";
 import { Play, Pause, Hash, Save } from "lucide-react";
 import type { CompetitionSettings as CompetitionSettingsType } from "@/db/schema";
+import { StartbahnConfigCard } from "@/components/startbahn-config";
 
 export function CompetitionSettings() {
   const [settings, setSettings] = useState<CompetitionSettingsType | null>(
@@ -204,6 +205,9 @@ export function CompetitionSettings() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Startbahn Names Configuration */}
+      <StartbahnConfigCard />
     </div>
   );
 }

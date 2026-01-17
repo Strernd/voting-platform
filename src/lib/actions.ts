@@ -7,8 +7,12 @@ import {
   beerRounds,
   competitionSettings,
   beerRegistrations,
+  startbahnConfigs,
+  VOTE_TYPES,
   type CompetitionSettings,
   type BeerRegistration,
+  type StartbahnConfig,
+  type VoteType,
 } from "@/db/schema";
 import { db } from "@/lib/db";
 import { eq, and, inArray, notInArray, sql } from "drizzle-orm";
@@ -53,8 +57,14 @@ export async function registerVoter(uuid: string): Promise<boolean> {
 }
 
 export async function toggleVoteForBeer(
-  beerId: string
-): Promise<{ success: boolean; message: string; votes: string[] }> {
+  beerId: string,
+  voteType: VoteType = VOTE_TYPES.BEST_BEER
+): Promise<{
+  success: boolean;
+  message: string;
+  bestBeerVotes: string[];
+  presentationVotes: string[];
+}> {
   try {
     // Check if voting is enabled
     const settings = await getCompetitionSettings();
@@ -62,7 +72,8 @@ export async function toggleVoteForBeer(
       return {
         success: false,
         message: "Die Abstimmung ist derzeit geschlossen",
-        votes: [],
+        bestBeerVotes: [],
+        presentationVotes: [],
       };
     }
 
@@ -74,7 +85,8 @@ export async function toggleVoteForBeer(
       return {
         success: false,
         message: "Du musst registriert sein, um zu wahlen",
-        votes: [],
+        bestBeerVotes: [],
+        presentationVotes: [],
       };
     }
 
@@ -87,7 +99,8 @@ export async function toggleVoteForBeer(
       return {
         success: false,
         message: "Ungultige oder inaktive Registrierung",
-        votes: [],
+        bestBeerVotes: [],
+        presentationVotes: [],
       };
     }
 
@@ -101,7 +114,8 @@ export async function toggleVoteForBeer(
       return {
         success: false,
         message: "Keine aktive Runde verfugbar",
-        votes: [],
+        bestBeerVotes: [],
+        presentationVotes: [],
       };
     }
 
@@ -122,11 +136,31 @@ export async function toggleVoteForBeer(
       return {
         success: false,
         message: "Bier ist in der aktuellen Runde nicht verfugbar",
-        votes: [],
+        bestBeerVotes: [],
+        presentationVotes: [],
       };
     }
 
-    // Check if voter has already voted for this beer in this round
+    // Helper to get current votes by type
+    const getVotesByType = async () => {
+      const allVotes = await db
+        .select({ beerId: votes.beerId, voteType: votes.voteType })
+        .from(votes)
+        .where(
+          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
+        );
+
+      return {
+        bestBeerVotes: allVotes
+          .filter((v) => v.voteType === VOTE_TYPES.BEST_BEER)
+          .map((v) => v.beerId),
+        presentationVotes: allVotes
+          .filter((v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION)
+          .map((v) => v.beerId),
+      };
+    };
+
+    // Check if voter has already voted for this beer with this voteType in this round
     const existingVote = await db
       .select()
       .from(votes)
@@ -134,7 +168,8 @@ export async function toggleVoteForBeer(
         and(
           eq(votes.voterId, voterUuid),
           eq(votes.beerId, beerId),
-          eq(votes.roundId, activeRound.id)
+          eq(votes.roundId, activeRound.id),
+          eq(votes.voteType, voteType)
         )
       );
 
@@ -143,41 +178,58 @@ export async function toggleVoteForBeer(
       await db.delete(votes).where(eq(votes.id, existingVote[0].id));
       revalidatePath("/");
 
-      // Get updated votes
-      const currentVotes = await db
-        .select({ beerId: votes.beerId })
-        .from(votes)
-        .where(
-          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
-        );
-
+      const currentVotes = await getVotesByType();
       return {
         success: true,
-        message: "Stimme entfernt",
-        votes: currentVotes.map((v) => v.beerId),
+        message:
+          voteType === VOTE_TYPES.BEST_PRESENTATION
+            ? "Schaumkrönchen entfernt"
+            : "Stimme entfernt",
+        ...currentVotes,
       };
     } else {
+      // For presentation votes, check if user already has a vote for a different beer
+      if (voteType === VOTE_TYPES.BEST_PRESENTATION) {
+        const existingPresentationVote = await db
+          .select()
+          .from(votes)
+          .where(
+            and(
+              eq(votes.voterId, voterUuid),
+              eq(votes.roundId, activeRound.id),
+              eq(votes.voteType, VOTE_TYPES.BEST_PRESENTATION)
+            )
+          );
+
+        if (existingPresentationVote.length > 0) {
+          const currentVotes = await getVotesByType();
+          return {
+            success: false,
+            message:
+              "Du hast bereits ein Schaumkrönchen vergeben. Entferne es zuerst.",
+            ...currentVotes,
+          };
+        }
+      }
+
       // Add new vote
       await db.insert(votes).values({
         voterId: voterUuid,
         beerId: beerId,
         roundId: activeRound.id,
+        voteType: voteType,
       });
 
       revalidatePath("/");
 
-      // Get updated votes
-      const currentVotes = await db
-        .select({ beerId: votes.beerId })
-        .from(votes)
-        .where(
-          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
-        );
-
+      const currentVotes = await getVotesByType();
       return {
         success: true,
-        message: "Stimme hinzugefugt",
-        votes: currentVotes.map((v) => v.beerId),
+        message:
+          voteType === VOTE_TYPES.BEST_PRESENTATION
+            ? "Schaumkrönchen vergeben"
+            : "Stimme hinzugefugt",
+        ...currentVotes,
       };
     }
   } catch (error) {
@@ -185,18 +237,22 @@ export async function toggleVoteForBeer(
     return {
       success: false,
       message: "Ein Fehler ist aufgetreten",
-      votes: [],
+      bestBeerVotes: [],
+      presentationVotes: [],
     };
   }
 }
 
-export async function getCurrentVotes(): Promise<string[]> {
+export async function getCurrentVotes(): Promise<{
+  bestBeer: string[];
+  presentation: string[];
+}> {
   try {
     const cookieStore = await cookies();
     const voterUuid = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (!voterUuid) {
-      return [];
+      return { bestBeer: [], presentation: [] };
     }
 
     // Get active round
@@ -206,22 +262,29 @@ export async function getCurrentVotes(): Promise<string[]> {
       .where(eq(rounds.active, true));
 
     if (activeRoundRecords.length === 0) {
-      return [];
+      return { bestBeer: [], presentation: [] };
     }
 
     const activeRound = activeRoundRecords[0];
 
     const existingVotes = await db
-      .select({ beerId: votes.beerId })
+      .select({ beerId: votes.beerId, voteType: votes.voteType })
       .from(votes)
       .where(
         and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
       );
 
-    return existingVotes.map((v) => v.beerId);
+    return {
+      bestBeer: existingVotes
+        .filter((v) => v.voteType === VOTE_TYPES.BEST_BEER)
+        .map((v) => v.beerId),
+      presentation: existingVotes
+        .filter((v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION)
+        .map((v) => v.beerId),
+    };
   } catch (error) {
     console.error("Error getting current votes:", error);
-    return [];
+    return { bestBeer: [], presentation: [] };
   }
 }
 
@@ -518,5 +581,54 @@ export async function unregisterBeer(beerId: string): Promise<{ success: boolean
   } catch (error) {
     console.error("Error unregistering beer:", error);
     return { success: false, message: "Fehler beim Entfernen der Registrierung" };
+  }
+}
+
+// Startbahn config actions
+export async function getStartbahnConfigs(): Promise<StartbahnConfig[]> {
+  try {
+    return await db.select().from(startbahnConfigs);
+  } catch (error) {
+    console.error("Error getting startbahn configs:", error);
+    return [];
+  }
+}
+
+export async function upsertStartbahnConfig(
+  startbahn: number,
+  name: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      return { success: false, message: "Name darf nicht leer sein" };
+    }
+
+    await db
+      .insert(startbahnConfigs)
+      .values({ startbahn, name: trimmedName })
+      .onConflictDoUpdate({
+        target: startbahnConfigs.startbahn,
+        set: { name: trimmedName },
+      });
+
+    revalidatePath("/admin");
+    return { success: true, message: "Startbahn-Konfiguration gespeichert" };
+  } catch (error) {
+    console.error("Error upserting startbahn config:", error);
+    return { success: false, message: "Fehler beim Speichern der Konfiguration" };
+  }
+}
+
+export async function deleteStartbahnConfig(
+  startbahn: number
+): Promise<{ success: boolean; message: string }> {
+  try {
+    await db.delete(startbahnConfigs).where(eq(startbahnConfigs.startbahn, startbahn));
+    revalidatePath("/admin");
+    return { success: true, message: "Startbahn-Konfiguration entfernt" };
+  } catch (error) {
+    console.error("Error deleting startbahn config:", error);
+    return { success: false, message: "Fehler beim Entfernen der Konfiguration" };
   }
 }

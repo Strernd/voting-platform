@@ -28,9 +28,10 @@ import {
   unregisterBeer,
   createRound,
   setActiveRound,
+  getStartbahnConfigs,
 } from "@/lib/actions";
 import { getAllBeers, type Beer as BeerType } from "@/lib/beer-data";
-import type { Round, BeerRegistration as BeerRegistrationType } from "@/db/schema";
+import type { Round, BeerRegistration as BeerRegistrationType, StartbahnConfig } from "@/db/schema";
 import { Search, Check, X, Trash2, Beer, Leaf, CheckCircle, Plus, Layers, RefreshCw, Edit2 } from "lucide-react";
 
 export function BeerRegistration() {
@@ -38,6 +39,7 @@ export function BeerRegistration() {
   const [registrations, setRegistrations] = useState<BeerRegistrationType[]>([]);
   const [rounds, setRounds] = useState<Round[]>([]);
   const [availableStartbahns, setAvailableStartbahns] = useState<number[]>([]);
+  const [startbahnConfigs, setStartbahnConfigs] = useState<StartbahnConfig[]>([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBeer, setSelectedBeer] = useState<BeerType | null>(null);
@@ -67,14 +69,16 @@ export function BeerRegistration() {
 
   const loadData = async () => {
     try {
-      const [beersData, registrationsData, roundsData] = await Promise.all([
+      const [beersData, registrationsData, roundsData, configsData] = await Promise.all([
         getAllBeers(),
         getRegisteredBeers(),
         getRounds(),
+        getStartbahnConfigs(),
       ]);
       setAllBeers(beersData);
       setRegistrations(registrationsData);
       setRounds(roundsData);
+      setStartbahnConfigs(configsData);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -99,6 +103,19 @@ export function BeerRegistration() {
     () => new Set(registrations.map((r) => r.beerId)),
     [registrations]
   );
+
+  const startbahnNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    startbahnConfigs.forEach((config) => {
+      map.set(config.startbahn, config.name);
+    });
+    return map;
+  }, [startbahnConfigs]);
+
+  const getStartbahnLabel = (num: number) => {
+    const name = startbahnNameMap.get(num);
+    return name ? `Startbahn ${num} - ${name}` : `Startbahn ${num}`;
+  };
 
   const unregisteredBeers = useMemo(
     () => allBeers.filter((beer) => !registeredBeerIds.has(beer.beerId)),
@@ -447,12 +464,12 @@ export function BeerRegistration() {
                     {/* Show current startbahn first if editing */}
                     {editingBeer && editingBeer.roundId === parseInt(selectedRound) && (
                       <SelectItem value={editingBeer.startbahn.toString()}>
-                        Startbahn {editingBeer.startbahn} (aktuell)
+                        {getStartbahnLabel(editingBeer.startbahn)} (aktuell)
                       </SelectItem>
                     )}
                     {availableStartbahns.map((num) => (
                       <SelectItem key={num} value={num.toString()}>
-                        Startbahn {num}
+                        {getStartbahnLabel(num)}
                       </SelectItem>
                     ))}
                   </SelectContent>

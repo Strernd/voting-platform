@@ -1,12 +1,20 @@
 import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 import { v4 as uuidv4 } from "uuid";
 
+export const VOTE_TYPES = {
+  BEST_BEER: "best_beer",
+  BEST_PRESENTATION: "best_presentation",
+} as const;
+
+export type VoteType = (typeof VOTE_TYPES)[keyof typeof VOTE_TYPES];
+
 export type Voter = typeof voters.$inferSelect;
 export type Vote = typeof votes.$inferSelect;
 export type Round = typeof rounds.$inferSelect;
 export type BeerRound = typeof beerRounds.$inferSelect;
 export type CompetitionSettings = typeof competitionSettings.$inferSelect;
 export type BeerRegistration = typeof beerRegistrations.$inferSelect;
+export type StartbahnConfig = typeof startbahnConfigs.$inferSelect;
 
 export const voters = sqliteTable("voters", {
   id: text()
@@ -42,6 +50,7 @@ export const votes = sqliteTable("votes", {
   roundId: integer("round_id")
     .notNull()
     .references(() => rounds.id),
+  voteType: text("vote_type").notNull().default("best_beer"),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
@@ -73,3 +82,8 @@ export const beerRegistrations = sqliteTable(
   },
   (table) => [unique().on(table.startbahn, table.roundId)]
 );
+
+export const startbahnConfigs = sqliteTable("startbahn_configs", {
+  startbahn: integer().primaryKey(),
+  name: text().notNull(),
+});

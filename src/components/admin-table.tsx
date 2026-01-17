@@ -12,7 +12,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { getRounds } from "@/lib/actions";
-import { Trophy, Medal, Award, Leaf, Monitor, Printer } from "lucide-react";
+import { VOTE_TYPES } from "@/db/schema";
+import { Trophy, Medal, Award, Leaf, Monitor, Printer, Star } from "lucide-react";
 import Link from "next/link";
 import type { Round } from "@/db/schema";
 
@@ -64,7 +65,8 @@ function RankBadge({ rank }: { rank: number }) {
 
 export function AdminTable() {
   const [rounds, setRounds] = useState<Round[]>([]);
-  const [beersData, setBeersData] = useState<Map<number, BeerWithVotes[]>>(new Map());
+  const [bestBeerData, setBestBeerData] = useState<Map<number, BeerWithVotes[]>>(new Map());
+  const [presentationData, setPresentationData] = useState<Map<number, BeerWithVotes[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overall");
@@ -75,21 +77,25 @@ export function AdminTable() {
         const roundsData = await getRounds();
         setRounds(roundsData);
 
-        // Fetch beer data for each round
-        const beersMap = new Map<number, BeerWithVotes[]>();
-        
+        // Fetch beer data for each round and vote type
+        const bestBeerMap = new Map<number, BeerWithVotes[]>();
+        const presentationMap = new Map<number, BeerWithVotes[]>();
+
         await Promise.all(
-          roundsData.map(async (round) => {
-            const response = await fetch(`/api/admin/beers-with-votes?roundId=${round.id}`);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch data for round ${round.id}`);
-            }
-            const data = await response.json();
-            beersMap.set(round.id, data);
-          })
+          roundsData.flatMap((round) => [
+            // Fetch best beer votes
+            fetch(`/api/admin/beers-with-votes?roundId=${round.id}&voteType=${VOTE_TYPES.BEST_BEER}`)
+              .then(res => res.json())
+              .then(data => bestBeerMap.set(round.id, data)),
+            // Fetch presentation votes
+            fetch(`/api/admin/beers-with-votes?roundId=${round.id}&voteType=${VOTE_TYPES.BEST_PRESENTATION}`)
+              .then(res => res.json())
+              .then(data => presentationMap.set(round.id, data)),
+          ])
         );
-        
-        setBeersData(beersMap);
+
+        setBestBeerData(bestBeerMap);
+        setPresentationData(presentationMap);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -124,11 +130,11 @@ export function AdminTable() {
     );
   }
 
-  // Calculate overall ranking by percentage across all rounds
+  // Calculate overall ranking by percentage across all rounds (best beer only)
   const overallRanking: BeerWithPercentage[] = [];
 
   rounds.forEach((round) => {
-    const beers = beersData.get(round.id) || [];
+    const beers = bestBeerData.get(round.id) || [];
     const totalVotes = beers.reduce((sum, beer) => sum + beer.votes, 0);
 
     beers.forEach((beer) => {
@@ -252,7 +258,7 @@ export function AdminTable() {
     );
   };
 
-  const BeerTable = ({ beers }: { beers: BeerWithVotes[] }) => {
+  const BeerTable = ({ beers, isPresentation = false }: { beers: BeerWithVotes[]; isPresentation?: boolean }) => {
     const totalVotes = beers.reduce((sum, beer) => sum + beer.votes, 0);
     const totalRawVotes = beers.reduce((sum, beer) => sum + beer.rawVotes, 0);
     const maxVotes = Math.max(...beers.map((b) => b.votes), 1);
@@ -271,10 +277,14 @@ export function AdminTable() {
               <TableHead className="w-[60px] text-center hidden sm:table-cell">
                 RHG
               </TableHead>
-              <TableHead className="text-right w-[180px]">Punkte</TableHead>
-              <TableHead className="text-right w-[80px] hidden sm:table-cell">
-                Stimmen
+              <TableHead className="text-right w-[180px]">
+                {isPresentation ? "Stimmen" : "Punkte"}
               </TableHead>
+              {!isPresentation && (
+                <TableHead className="text-right w-[80px] hidden sm:table-cell">
+                  Stimmen
+                </TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -286,11 +296,13 @@ export function AdminTable() {
               <TableCell colSpan={2} className="hidden md:table-cell" />
               <TableCell className="hidden sm:table-cell" />
               <TableCell className="text-right font-bold text-primary text-lg">
-                {totalVotes.toFixed(2)}
+                {isPresentation ? totalVotes : totalVotes.toFixed(2)}
               </TableCell>
-              <TableCell className="text-right font-bold text-muted-foreground hidden sm:table-cell">
-                {totalRawVotes}
-              </TableCell>
+              {!isPresentation && (
+                <TableCell className="text-right font-bold text-muted-foreground hidden sm:table-cell">
+                  {totalRawVotes}
+                </TableCell>
+              )}
             </TableRow>
 
             {beers.map((beer, index) => {
@@ -341,7 +353,7 @@ export function AdminTable() {
                     <div className="space-y-1">
                       <div className="flex items-center justify-end gap-2">
                         <span className="font-bold text-lg">
-                          {beer.votes.toFixed(2)}
+                          {isPresentation ? beer.votes : beer.votes.toFixed(2)}
                         </span>
                         <span className="text-muted-foreground text-xs w-12 text-right">
                           {percentage.toFixed(1)}%
@@ -364,9 +376,11 @@ export function AdminTable() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground hidden sm:table-cell">
-                    {beer.rawVotes}
-                  </TableCell>
+                  {!isPresentation && (
+                    <TableCell className="text-right text-muted-foreground hidden sm:table-cell">
+                      {beer.rawVotes}
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
@@ -376,6 +390,54 @@ export function AdminTable() {
           <div className="text-center py-12 text-muted-foreground">
             Keine Biere in dieser Runde registriert
           </div>
+        )}
+      </div>
+    );
+  };
+
+  const RoundContent = ({ round }: { round: Round }) => {
+    const [categoryTab, setCategoryTab] = useState("best_beer");
+
+    return (
+      <div>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <Tabs value={categoryTab} onValueChange={setCategoryTab}>
+            <TabsList>
+              <TabsTrigger value="best_beer" className="flex items-center gap-2">
+                <Star className="h-4 w-4" />
+                Bestes Bier
+              </TabsTrigger>
+              <TabsTrigger value="presentation" className="flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                Schaumkrönchen
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/display/${round.id}`}
+              target="_blank"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Monitor className="h-4 w-4" />
+              TV-Anzeige
+            </Link>
+            <Link
+              href={`/display/${round.id}/print`}
+              target="_blank"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Printer className="h-4 w-4" />
+              Drucken
+            </Link>
+          </div>
+        </div>
+
+        {categoryTab === "best_beer" ? (
+          <BeerTable beers={bestBeerData.get(round.id) || []} />
+        ) : (
+          <BeerTable beers={presentationData.get(round.id) || []} isPresentation />
         )}
       </div>
     );
@@ -402,25 +464,7 @@ export function AdminTable() {
 
       {rounds.map((round) => (
         <TabsContent key={round.id} value={round.id.toString()}>
-          <div className="mb-4 flex items-center justify-end gap-2">
-            <Link
-              href={`/display/${round.id}`}
-              target="_blank"
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Monitor className="h-4 w-4" />
-              TV-Anzeige
-            </Link>
-            <Link
-              href={`/display/${round.id}/print`}
-              target="_blank"
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Printer className="h-4 w-4" />
-              Drucken
-            </Link>
-          </div>
-          <BeerTable beers={beersData.get(round.id) || []} />
+          <RoundContent round={round} />
         </TabsContent>
       ))}
     </Tabs>

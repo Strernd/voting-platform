@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { votes, beerRegistrations } from "@/db/schema";
+import { votes, beerRegistrations, VOTE_TYPES } from "@/db/schema";
 import { exampleBeers } from "../../beers/examples";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const roundId = searchParams.get("roundId");
+    const voteType = searchParams.get("voteType") || VOTE_TYPES.BEST_BEER;
 
     if (!roundId) {
       return NextResponse.json(
@@ -18,38 +19,20 @@ export async function GET(request: Request) {
 
     const parsedRoundId = parseInt(roundId, 10);
 
-    // Get all votes for this round
+    // Get all votes for this round filtered by vote type
     const allVotes = await db
       .select({
         voterId: votes.voterId,
         beerId: votes.beerId,
+        voteType: votes.voteType,
       })
       .from(votes)
-      .where(eq(votes.roundId, parsedRoundId));
-
-    // Group votes by voterId to count how many votes each voter cast
-    const votesByVoter = new Map<string, string[]>();
-    for (const vote of allVotes) {
-      const existing = votesByVoter.get(vote.voterId) || [];
-      existing.push(vote.beerId);
-      votesByVoter.set(vote.voterId, existing);
-    }
-
-    // Calculate weighted votes per beer
-    const weightedVotes = new Map<string, number>();
-    const rawVotes = new Map<string, number>();
-
-    for (const [voterId, beerIds] of votesByVoter) {
-      const weight = 1 / beerIds.length;
-      for (const beerId of beerIds) {
-        // Weighted vote
-        const currentWeighted = weightedVotes.get(beerId) || 0;
-        weightedVotes.set(beerId, currentWeighted + weight);
-        // Raw vote count
-        const currentRaw = rawVotes.get(beerId) || 0;
-        rawVotes.set(beerId, currentRaw + 1);
-      }
-    }
+      .where(
+        and(
+          eq(votes.roundId, parsedRoundId),
+          eq(votes.voteType, voteType)
+        )
+      );
 
     // Get beer registrations for this round
     const registrations = await db
@@ -72,22 +55,74 @@ export async function GET(request: Request) {
       registeredBeerIds.has(beer.submission_id)
     );
 
-    // Combine beer data with vote counts
-    const beersWithVotes = filteredBeers.map((beer) => {
-      const reg = registrationMap.get(beer.submission_id);
-      return {
-        id: beer.submission_id,
-        name: beer.beername,
-        brewer: beer.brewer,
-        style: beer.style,
-        votes: Math.round((weightedVotes.get(beer.submission_id) || 0) * 100) / 100,
-        rawVotes: rawVotes.get(beer.submission_id) || 0,
-        startbahn: reg?.startbahn || 0,
-        reinheitsgebot: reg?.reinheitsgebot || false,
-      };
-    });
+    let beersWithVotes;
 
-    // Sort by weighted vote count descending
+    if (voteType === VOTE_TYPES.BEST_BEER) {
+      // Weighted calculation for best beer votes
+      // Group votes by voterId to count how many votes each voter cast
+      const votesByVoter = new Map<string, string[]>();
+      for (const vote of allVotes) {
+        const existing = votesByVoter.get(vote.voterId) || [];
+        existing.push(vote.beerId);
+        votesByVoter.set(vote.voterId, existing);
+      }
+
+      // Calculate weighted votes per beer
+      const weightedVotes = new Map<string, number>();
+      const rawVotes = new Map<string, number>();
+
+      for (const [voterId, beerIds] of votesByVoter) {
+        const weight = 1 / beerIds.length;
+        for (const beerId of beerIds) {
+          // Weighted vote
+          const currentWeighted = weightedVotes.get(beerId) || 0;
+          weightedVotes.set(beerId, currentWeighted + weight);
+          // Raw vote count
+          const currentRaw = rawVotes.get(beerId) || 0;
+          rawVotes.set(beerId, currentRaw + 1);
+        }
+      }
+
+      // Combine beer data with vote counts
+      beersWithVotes = filteredBeers.map((beer) => {
+        const reg = registrationMap.get(beer.submission_id);
+        return {
+          id: beer.submission_id,
+          name: beer.beername,
+          brewer: beer.brewer,
+          style: beer.style,
+          votes: Math.round((weightedVotes.get(beer.submission_id) || 0) * 100) / 100,
+          rawVotes: rawVotes.get(beer.submission_id) || 0,
+          startbahn: reg?.startbahn || 0,
+          reinheitsgebot: reg?.reinheitsgebot || false,
+        };
+      });
+    } else {
+      // Simple count for presentation votes (1 vote = 1 point)
+      const voteCount = new Map<string, number>();
+      for (const vote of allVotes) {
+        const current = voteCount.get(vote.beerId) || 0;
+        voteCount.set(vote.beerId, current + 1);
+      }
+
+      // Combine beer data with vote counts
+      beersWithVotes = filteredBeers.map((beer) => {
+        const reg = registrationMap.get(beer.submission_id);
+        const count = voteCount.get(beer.submission_id) || 0;
+        return {
+          id: beer.submission_id,
+          name: beer.beername,
+          brewer: beer.brewer,
+          style: beer.style,
+          votes: count,
+          rawVotes: count,
+          startbahn: reg?.startbahn || 0,
+          reinheitsgebot: reg?.reinheitsgebot || false,
+        };
+      });
+    }
+
+    // Sort by vote count descending
     beersWithVotes.sort((a, b) => b.votes - a.votes);
 
     return NextResponse.json(beersWithVotes);

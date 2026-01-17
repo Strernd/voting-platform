@@ -11,7 +11,8 @@ interface BeerListProps {
   beers: BeerWithRegistration[];
   voterUuid?: string;
   isRegistered: boolean;
-  currentVoteIds: string[];
+  bestBeerVoteIds: string[];
+  presentationVoteIds: string[];
   votingEnabled?: boolean;
 }
 
@@ -19,7 +20,8 @@ export function BeerList({
   beers,
   voterUuid,
   isRegistered,
-  currentVoteIds,
+  bestBeerVoteIds,
+  presentationVoteIds,
   votingEnabled = true,
 }: BeerListProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -27,11 +29,13 @@ export function BeerList({
 
   const styleOptions = useMemo(() => {
     const styleCounts = beers.reduce((acc, beer) => {
-      acc[beer.style] = (acc[beer.style] || 0) + 1;
+      const style = beer.style || "Unbekannt";
+      acc[style] = (acc[style] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
     const styles = Object.entries(styleCounts)
+      .filter(([style]) => style !== "") // Filter out empty strings
       .map(([style, count]) => ({ style, count }))
       .sort((a, b) => a.style.localeCompare(b.style));
 
@@ -102,7 +106,8 @@ export function BeerList({
             key={beer.beerId}
             beer={beer}
             isRegistered={isRegistered}
-            currentVoteIds={currentVoteIds}
+            bestBeerVoteIds={bestBeerVoteIds}
+            presentationVoteIds={presentationVoteIds}
             votingEnabled={votingEnabled}
           />
         ))}
