@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  // Only protect /admin routes
-  if (!request.nextUrl.pathname.startsWith("/admin")) {
+  // Protect /admin routes and /api/admin routes
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+  const isAdminApi = request.nextUrl.pathname.startsWith("/api/admin");
+
+  if (!isAdminRoute && !isAdminApi) {
     return NextResponse.next();
   }
 
@@ -42,5 +45,5 @@ function unauthorized() {
 }
 
 export const config = {
-  matcher: "/admin/:path*",
+  matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
