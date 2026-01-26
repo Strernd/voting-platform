@@ -1,4 +1,5 @@
-import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
 export const VOTE_TYPES = {
@@ -39,22 +40,30 @@ export const beerRounds = sqliteTable("beer_rounds", {
     .references(() => rounds.id),
 });
 
-export const votes = sqliteTable("votes", {
-  id: text()
-    .primaryKey()
-    .$defaultFn(() => uuidv4()),
-  voterId: text("voter_id")
-    .notNull()
-    .references(() => voters.id),
-  beerId: text().notNull(),
-  roundId: integer("round_id")
-    .notNull()
-    .references(() => rounds.id),
-  voteType: text("vote_type").notNull().default("best_beer"),
-  createdAt: text("created_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-});
+export const votes = sqliteTable(
+  "votes",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => uuidv4()),
+    voterId: text("voter_id")
+      .notNull()
+      .references(() => voters.id),
+    beerId: text().notNull(),
+    roundId: integer("round_id")
+      .notNull()
+      .references(() => rounds.id),
+    voteType: text("vote_type").notNull().default("best_beer"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    uniqueIndex("votes_presentation_unique")
+      .on(table.voterId, table.roundId)
+      .where(sql`${table.voteType} = 'best_presentation'`),
+  ]
+);
 
 export const competitionSettings = sqliteTable("competition_settings", {
   id: integer().primaryKey().default(1),
