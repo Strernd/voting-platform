@@ -23,7 +23,7 @@ export default async function Home() {
   const presentationVoteIds = currentVotes.presentation;
 
   return (
-    <div className="dark min-h-screen bg-background">
+    <div className="dark min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-gradient-to-b from-card to-background border-b border-border">
         <div className="container mx-auto px-4 py-4 max-w-2xl">
@@ -63,7 +63,7 @@ export default async function Home() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 max-w-2xl">
+      <main className="container mx-auto px-4 py-6 max-w-2xl flex-1">
         {/* Voting Status Banner */}
         {!votingEnabled && (
           <div className="mb-6 p-4 rounded-lg bg-warning/10 border border-warning/30 flex items-center gap-3">
@@ -146,6 +146,21 @@ export default async function Home() {
           />
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="container mx-auto px-4 py-4 max-w-2xl border-t border-border">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Gebaut von Lagerbernd</span>
+          <a
+            href="https://brewforge.sh/m/hbcon"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Teste meine Brewfather Alternative
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
