@@ -302,7 +302,7 @@ export function BeerRegistration() {
             {/* Rounds list */}
             {rounds.length > 0 && (
               <div className="space-y-3">
-                {rounds.map((round) => {
+                {rounds.map((round, roundIndex) => {
                   const roundBeers = registrations.filter(r => r.roundId === round.id);
                   const beersWithDetails = roundBeers.map(reg => {
                     const beer = allBeers.find(b => b.beerId === reg.beerId);
@@ -327,7 +327,7 @@ export function BeerRegistration() {
                       >
                         <div className="flex items-center gap-3">
                           <span className="font-medium">
-                            {round.id}: {round.name}
+                            #{roundIndex + 1}: {round.name}
                           </span>
                           {round.active && (
                             <Badge className="bg-primary">Aktiv</Badge>
@@ -432,9 +432,9 @@ export function BeerRegistration() {
                     <SelectValue placeholder="Runde wählen..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {rounds.map((round) => (
+                    {rounds.map((round, roundIndex) => (
                       <SelectItem key={round.id} value={round.id.toString()}>
-                        {round.id}: {round.name}
+                        #{roundIndex + 1}: {round.name}
                         {round.active && " (Aktiv)"}
                       </SelectItem>
                     ))}

@@ -135,10 +135,10 @@ export function RoundManagement() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {rounds.map((round) => (
+            {rounds.map((round, index) => (
               <div key={round.id} className="flex items-center justify-between p-3 border rounded">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{round.id}: {round.name}</span>
+                  <span className="font-medium">#{index + 1}: {round.name}</span>
                   {round.active && <Badge variant="default">Active</Badge>}
                   <span className="text-sm text-muted-foreground">
                     ({beersInRounds.get(round.id)?.length || 0} beers)
@@ -178,7 +178,7 @@ export function RoundManagement() {
         <Card>
           <CardHeader>
             <CardTitle>
-              Assign Beers to {selectedRound}: {rounds.find(r => r.id === selectedRound)?.name}
+              Assign Beers to #{rounds.findIndex(r => r.id === selectedRound) + 1}: {rounds.find(r => r.id === selectedRound)?.name}
             </CardTitle>
           </CardHeader>
           <CardContent>

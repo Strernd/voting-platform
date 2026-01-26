@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { votes, beerRegistrations, VOTE_TYPES } from "@/db/schema";
-import { exampleBeers } from "../../beers/examples";
+import { getAllBeers } from "@/lib/beer-data";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(request: Request) {
@@ -50,9 +50,12 @@ export async function GET(request: Request) {
     // Get registered beer IDs for this round
     const registeredBeerIds = new Set(registrations.map((r) => r.beerId));
 
+    // Fetch all beers from the API
+    const allBeers = await getAllBeers();
+
     // Filter beers to only those registered in this round
-    const filteredBeers = exampleBeers.filter((beer) =>
-      registeredBeerIds.has(beer.submission_id)
+    const filteredBeers = allBeers.filter((beer) =>
+      registeredBeerIds.has(beer.beerId)
     );
 
     let beersWithVotes;
@@ -85,14 +88,14 @@ export async function GET(request: Request) {
 
       // Combine beer data with vote counts
       beersWithVotes = filteredBeers.map((beer) => {
-        const reg = registrationMap.get(beer.submission_id);
+        const reg = registrationMap.get(beer.beerId);
         return {
-          id: beer.submission_id,
-          name: beer.beername,
+          id: beer.beerId,
+          name: beer.name,
           brewer: beer.brewer,
           style: beer.style,
-          votes: Math.round((weightedVotes.get(beer.submission_id) || 0) * 100) / 100,
-          rawVotes: rawVotes.get(beer.submission_id) || 0,
+          votes: Math.round((weightedVotes.get(beer.beerId) || 0) * 100) / 100,
+          rawVotes: rawVotes.get(beer.beerId) || 0,
           startbahn: reg?.startbahn || 0,
           reinheitsgebot: reg?.reinheitsgebot || false,
         };
@@ -107,11 +110,11 @@ export async function GET(request: Request) {
 
       // Combine beer data with vote counts
       beersWithVotes = filteredBeers.map((beer) => {
-        const reg = registrationMap.get(beer.submission_id);
-        const count = voteCount.get(beer.submission_id) || 0;
+        const reg = registrationMap.get(beer.beerId);
+        const count = voteCount.get(beer.beerId) || 0;
         return {
-          id: beer.submission_id,
-          name: beer.beername,
+          id: beer.beerId,
+          name: beer.name,
           brewer: beer.brewer,
           style: beer.style,
           votes: count,

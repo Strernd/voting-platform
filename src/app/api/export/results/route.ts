@@ -49,6 +49,7 @@ interface BeerResult {
   startbahn: number;
   reinheitsgebot: boolean;
   round_id: number;
+  round_number: number;
   round_name: string;
 
   primary_weighted_votes: number;
@@ -93,6 +94,9 @@ export async function GET(request: Request) {
 
     // Create lookup maps
     const roundMap = new Map(allRounds.map((r) => [r.id, r]));
+    // Create round number map (sequential 1, 2, 3... based on order)
+    const sortedRounds = [...allRounds].sort((a, b) => a.id - b.id);
+    const roundNumberMap = new Map(sortedRounds.map((r, index) => [r.id, index + 1]));
     const beerMap = new Map(
       (externalBeers || []).map((b) => [b.submission_id, b])
     );
@@ -240,6 +244,7 @@ export async function GET(request: Request) {
           startbahn: reg.startbahn,
           reinheitsgebot: reg.reinheitsgebot,
           round_id: roundId,
+          round_number: roundNumberMap.get(roundId) || 0,
           round_name: round.name,
 
           primary_weighted_votes: rb.primaryWeighted,

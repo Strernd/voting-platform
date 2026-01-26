@@ -28,7 +28,6 @@ async function fetchBeers() {
   try {
     const url = "https://manager.heimbrauconvention.de/api/submission/";
     const apiToken = process.env.HBCON_API_TOKEN;
-    console.log("fetching beers from", url);
     const res = await fetch(url, {
       method: "GET",
       headers: {
@@ -37,7 +36,6 @@ async function fetchBeers() {
       },
     });
     const data = await res.json();
-    console.log("API response:", JSON.stringify(data, null, 2));
     return data as typeof exampleBeers;
   } catch (error) {
     console.error("Error fetching beers:", error);

@@ -36,11 +36,6 @@ export default async function Home() {
                 <h1 className="text-lg font-bold text-foreground">
                   {activeRound ? activeRound.name : "Bier Voting"}
                 </h1>
-                {activeRound && (
-                  <p className="text-xs text-muted-foreground">
-                    Runde {activeRound.id}
-                  </p>
-                )}
               </div>
             </div>
 

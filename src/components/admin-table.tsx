@@ -130,8 +130,8 @@ export function AdminTable() {
     );
   }
 
-  // Calculate overall ranking by percentage across all rounds (best beer only)
-  const overallRanking: BeerWithPercentage[] = [];
+  // Calculate overall ranking by percentage across all rounds (best beer)
+  const overallBestBeerRanking: BeerWithPercentage[] = [];
 
   rounds.forEach((round) => {
     const beers = bestBeerData.get(round.id) || [];
@@ -139,7 +139,7 @@ export function AdminTable() {
 
     beers.forEach((beer) => {
       const percentage = totalVotes > 0 ? (beer.votes / totalVotes) * 100 : 0;
-      overallRanking.push({
+      overallBestBeerRanking.push({
         ...beer,
         percentage,
         roundId: round.id,
@@ -149,10 +149,31 @@ export function AdminTable() {
   });
 
   // Sort by percentage descending
-  overallRanking.sort((a, b) => b.percentage - a.percentage);
+  overallBestBeerRanking.sort((a, b) => b.percentage - a.percentage);
 
-  const OverallTable = () => {
-    const maxPercentage = Math.max(...overallRanking.map((b) => b.percentage), 1);
+  // Calculate overall ranking by percentage across all rounds (presentation/Schaumkrönchen)
+  const overallPresentationRanking: BeerWithPercentage[] = [];
+
+  rounds.forEach((round) => {
+    const beers = presentationData.get(round.id) || [];
+    const totalVotes = beers.reduce((sum, beer) => sum + beer.votes, 0);
+
+    beers.forEach((beer) => {
+      const percentage = totalVotes > 0 ? (beer.votes / totalVotes) * 100 : 0;
+      overallPresentationRanking.push({
+        ...beer,
+        percentage,
+        roundId: round.id,
+        roundName: round.name,
+      });
+    });
+  });
+
+  // Sort by percentage descending
+  overallPresentationRanking.sort((a, b) => b.percentage - a.percentage);
+
+  const OverallRankingTable = ({ ranking }: { ranking: BeerWithPercentage[] }) => {
+    const maxPercentage = Math.max(...ranking.map((b) => b.percentage), 1);
 
     return (
       <div className="rounded-xl border border-border overflow-hidden bg-card">
@@ -173,7 +194,7 @@ export function AdminTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {overallRanking.map((beer, index) => {
+            {ranking.map((beer, index) => {
               const rank = index + 1;
               const barWidth = (beer.percentage / maxPercentage) * 100;
 
@@ -249,10 +270,39 @@ export function AdminTable() {
             })}
           </TableBody>
         </Table>
-        {overallRanking.length === 0 && (
+        {ranking.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             Keine Biere registriert
           </div>
+        )}
+      </div>
+    );
+  };
+
+  const OverallContent = () => {
+    const [overallCategory, setOverallCategory] = useState("best_beer");
+
+    return (
+      <div>
+        <div className="mb-4">
+          <Tabs value={overallCategory} onValueChange={setOverallCategory}>
+            <TabsList>
+              <TabsTrigger value="best_beer" className="flex items-center gap-2">
+                <Star className="h-4 w-4" />
+                Bestes Bier
+              </TabsTrigger>
+              <TabsTrigger value="presentation" className="flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                Schaumkrönchen
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {overallCategory === "best_beer" ? (
+          <OverallRankingTable ranking={overallBestBeerRanking} />
+        ) : (
+          <OverallRankingTable ranking={overallPresentationRanking} />
         )}
       </div>
     );
@@ -450,16 +500,16 @@ export function AdminTable() {
           <Trophy className="h-4 w-4" />
           Gesamt
         </TabsTrigger>
-        {rounds.map((round) => (
+        {rounds.map((round, index) => (
           <TabsTrigger key={round.id} value={round.id.toString()} className="inline-flex items-center gap-2">
-            {round.id}: {round.name}
+            #{index + 1}: {round.name}
             {round.active && <Badge variant="secondary" className="text-xs">Aktiv</Badge>}
           </TabsTrigger>
         ))}
       </TabsList>
 
       <TabsContent value="overall">
-        <OverallTable />
+        <OverallContent />
       </TabsContent>
 
       {rounds.map((round) => (
