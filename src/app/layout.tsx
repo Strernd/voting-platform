@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
+import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const bahnschrift = localFont({
+  src: "../fonts/bahnschrift.ttf",
+  variable: "--font-bahnschrift",
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -13,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Heimbrauspiele Bier Voting",
+  title: "Bundes Heimbrau Spiele",
   description: "Stimme für dein Lieblingsbier",
 };
 
@@ -23,9 +25,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="de">
       <body
-        className={`dark ${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${bahnschrift.variable} ${geistMono.variable} antialiased`}
       >
         {children}
       </body>

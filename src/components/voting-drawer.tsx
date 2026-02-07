@@ -20,7 +20,7 @@ import {
   XCircle,
   Leaf,
   ExternalLink,
-  Trophy,
+  Crown,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -104,7 +104,6 @@ export function VotingDrawer({
     setVoteResult(null);
   };
 
-  // Show indicator if voted for this beer in any category
   const hasAnyVote = isBestBeerVote || isPresentationVote;
 
   return (
@@ -115,20 +114,24 @@ export function VotingDrawer({
           size="default"
           className={`h-full w-12 px-3 py-2 shrink-0 flex items-center justify-center rounded-lg transition-colors ${
             hasAnyVote
-              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-              : "hover:bg-primary/10"
+              ? isBestBeerVote && isPresentationVote
+                ? "bg-[#5C5647] text-white hover:bg-[#5C5647]/90"
+                : isBestBeerVote
+                  ? "bg-malt text-white hover:bg-malt/90"
+                  : "bg-yeast text-white hover:bg-yeast/90"
+              : "hover:bg-[#5C5647]/5 text-muted-foreground"
           }`}
           onClick={resetVoteResult}
         >
           {isBestBeerVote && isPresentationVote ? (
             <div className="flex gap-0.5">
               <Star className="h-4 w-4 fill-current" />
-              <Trophy className="h-4 w-4 fill-current" />
+              <Crown className="h-4 w-4 fill-current" />
             </div>
           ) : isBestBeerVote ? (
             <Star className="h-5 w-5 fill-current" />
           ) : isPresentationVote ? (
-            <Trophy className="h-5 w-5 fill-current" />
+            <Crown className="h-5 w-5 fill-current" />
           ) : (
             <ChevronRight className="h-5 w-5" />
           )}
@@ -140,13 +143,13 @@ export function VotingDrawer({
           {/* Beer Header */}
           <div className="mb-6">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-                <span className="text-3xl font-bold text-primary-foreground">
+              <div className="w-16 h-16 rounded-xl bg-[#5C5647] flex items-center justify-center shadow-lg">
+                <span className="text-3xl font-bold text-white">
                   {beer.startbahn}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl font-bold leading-tight">{beer.name}</h2>
+                <h2 className="text-xl font-bold leading-tight text-foreground">{beer.name}</h2>
                 <p className="text-muted-foreground">{beer.brewer}</p>
               </div>
             </div>
@@ -162,7 +165,7 @@ export function VotingDrawer({
               <Badge variant="secondary">{beer.alcohol}% ABV</Badge>
               <Badge variant="secondary">{beer.ibu} IBU</Badge>
               {beer.reinheitsgebot && (
-                <Badge className="bg-success text-success-foreground">
+                <Badge className="bg-hops text-white">
                   <Leaf className="h-3 w-3 mr-1" />
                   RHG
                 </Badge>
@@ -176,18 +179,18 @@ export function VotingDrawer({
               <div
                 className={`flex items-center gap-3 p-4 rounded-xl ${
                   voteResult.success
-                    ? "bg-success/10 border border-success/30"
+                    ? "bg-hops/10 border border-hops/30"
                     : "bg-destructive/10 border border-destructive/30"
                 }`}
               >
                 {voteResult.success ? (
-                  <CheckCircle className="h-6 w-6 text-success shrink-0" />
+                  <CheckCircle className="h-6 w-6 text-hops shrink-0" />
                 ) : (
                   <XCircle className="h-6 w-6 text-destructive shrink-0" />
                 )}
                 <span
-                  className={`font-medium ${
-                    voteResult.success ? "text-success" : "text-destructive"
+                  className={`font-bold ${
+                    voteResult.success ? "text-hops" : "text-destructive"
                   }`}
                 >
                   {voteResult.message}
@@ -214,7 +217,7 @@ export function VotingDrawer({
                 value="best_presentation"
                 className="flex items-center gap-2"
               >
-                <Trophy className="h-4 w-4" />
+                <Crown className="h-4 w-4" />
                 Schaumkrönchen
               </TabsTrigger>
             </TabsList>
@@ -222,10 +225,10 @@ export function VotingDrawer({
             <TabsContent value="best_beer" className="space-y-4 mt-4">
               {/* Current Vote Status */}
               {isBestBeerVote && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/10 border border-primary/30">
-                  <Star className="h-6 w-6 text-primary fill-primary shrink-0" />
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-malt/10 border border-malt/30">
+                  <Star className="h-6 w-6 text-malt fill-malt shrink-0" />
                   <div>
-                    <span className="font-medium text-primary">
+                    <span className="font-bold text-foreground">
                       Du hast für dieses Bier gestimmt
                     </span>
                     <p className="text-muted-foreground text-sm">
@@ -242,7 +245,7 @@ export function VotingDrawer({
                     <span className="text-muted-foreground">
                       Aktuelle Stimmen: {bestBeerVoteCount}
                     </span>
-                    <span className="font-medium">
+                    <span className="font-bold text-foreground">
                       Neue Gewichtung: {newVoteWeight}
                     </span>
                   </div>
@@ -250,9 +253,9 @@ export function VotingDrawer({
               )}
 
               {/* Vote Info */}
-              <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+              <div className="p-3 rounded-lg bg-malt/5 border border-malt/20 text-sm text-muted-foreground">
                 <p>
-                  <strong>Unbegrenzte Stimmen</strong> - Gewichtung wird geteilt
+                  <strong className="text-foreground">Unbegrenzte Stimmen</strong> — Gewichtung wird geteilt
                   (1/N)
                 </p>
               </div>
@@ -261,10 +264,10 @@ export function VotingDrawer({
               <Button
                 onClick={() => handleVote(VOTE_TYPES.BEST_BEER)}
                 disabled={!canVote || isVoting}
-                className={`w-full h-14 text-base font-semibold ${
+                className={`w-full h-14 text-base font-bold ${
                   isBestBeerVote
-                    ? "bg-destructive hover:bg-destructive/90"
-                    : "bg-primary hover:bg-primary/90"
+                    ? "bg-destructive hover:bg-destructive/90 text-white"
+                    : "bg-malt hover:bg-malt/90 text-white"
                 }`}
                 size="lg"
               >
@@ -288,10 +291,10 @@ export function VotingDrawer({
             <TabsContent value="best_presentation" className="space-y-4 mt-4">
               {/* Current Vote Status */}
               {isPresentationVote && (
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-gold/10 border border-gold/30">
-                  <Trophy className="h-6 w-6 text-gold fill-gold shrink-0" />
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-yeast/10 border border-yeast/30">
+                  <Crown className="h-6 w-6 text-yeast fill-yeast shrink-0" />
                   <div>
-                    <span className="font-medium text-gold">
+                    <span className="font-bold text-foreground">
                       Das goldene Schaumkrönchen
                     </span>
                     <p className="text-muted-foreground text-sm">
@@ -304,8 +307,8 @@ export function VotingDrawer({
               {/* Presentation Vote Status */}
               {!isPresentationVote &&
                 localPresentationVoteIds.length > 0 && (
-                  <div className="p-4 rounded-xl bg-warning/10 border border-warning/30">
-                    <p className="text-warning text-sm">
+                  <div className="p-4 rounded-xl bg-malt/10 border border-malt/30">
+                    <p className="text-foreground text-sm">
                       Du hast das Schaumkrönchen bereits an ein anderes Bier
                       vergeben. Entferne es dort zuerst.
                     </p>
@@ -313,9 +316,9 @@ export function VotingDrawer({
                 )}
 
               {/* Vote Info */}
-              <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+              <div className="p-3 rounded-lg bg-yeast/5 border border-yeast/20 text-sm text-muted-foreground">
                 <p>
-                  <strong>1 Stimme pro Runde</strong> - Wähle die beste
+                  <strong className="text-foreground">1 Stimme pro Runde</strong> — Wähle die beste
                   Präsentation
                 </p>
               </div>
@@ -324,17 +327,17 @@ export function VotingDrawer({
               <Button
                 onClick={() => handleVote(VOTE_TYPES.BEST_PRESENTATION)}
                 disabled={!canVote || isVoting}
-                className={`w-full h-14 text-base font-semibold ${
+                className={`w-full h-14 text-base font-bold ${
                   isPresentationVote
-                    ? "bg-destructive hover:bg-destructive/90"
-                    : "bg-gold hover:bg-gold/90 text-gold-foreground"
+                    ? "bg-destructive hover:bg-destructive/90 text-white"
+                    : "bg-yeast hover:bg-yeast/90 text-white"
                 }`}
                 size="lg"
               >
                 {isPresentationVote ? (
                   <Minus className="h-5 w-5 mr-2" />
                 ) : (
-                  <Trophy className="h-5 w-5 mr-2" />
+                  <Crown className="h-5 w-5 mr-2" />
                 )}
                 {isVoting
                   ? "..."
@@ -351,13 +354,13 @@ export function VotingDrawer({
 
           {/* Status Messages */}
           {!votingEnabled && (
-            <p className="text-center text-warning text-sm mb-4">
+            <p className="text-center text-malt text-sm font-bold mb-4">
               Die Abstimmung ist derzeit geschlossen
             </p>
           )}
 
           {votingEnabled && !isRegistered && (
-            <p className="text-center text-destructive text-sm mb-4">
+            <p className="text-center text-destructive text-sm font-bold mb-4">
               Du musst dich mit einem gültigen Code registrieren, um zu wählen
             </p>
           )}

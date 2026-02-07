@@ -35,7 +35,7 @@ export function BeerList({
     }, {} as Record<string, number>);
 
     const styles = Object.entries(styleCounts)
-      .filter(([style]) => style !== "") // Filter out empty strings
+      .filter(([style]) => style !== "")
       .map(([style, count]) => ({ style, count }))
       .sort((a, b) => a.style.localeCompare(b.style));
 
@@ -75,12 +75,12 @@ export function BeerList({
             placeholder="Suche nach Biername, Brauerei oder Stil..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 text-white"
+            className="pl-10 bg-card border-border text-foreground placeholder:text-muted-foreground"
           />
         </div>
-        
+
         <Select value={selectedStyle} onValueChange={setSelectedStyle}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full bg-card">
             <SelectValue placeholder="Nach Stil filtern" />
           </SelectTrigger>
           <SelectContent>
@@ -90,7 +90,7 @@ export function BeerList({
                   <span className="capitalize">
                     {option.style === "all" ? "Alle Stile" : option.style}
                   </span>
-                  <span className="ml-2 border border-muted-foreground/30 px-2 py-0.5 rounded-full text-xs font-medium">
+                  <span className="ml-2 border border-border px-2 py-0.5 rounded-full text-xs font-bold">
                     {option.count}
                   </span>
                 </div>
@@ -99,7 +99,7 @@ export function BeerList({
           </SelectContent>
         </Select>
       </div>
-      
+
       <div className="space-y-3">
         {filteredBeers.map((beer) => (
           <BeerCard
@@ -112,10 +112,10 @@ export function BeerList({
           />
         ))}
       </div>
-      
+
       {filteredBeers.length === 0 && searchTerm && (
         <p className="text-center text-muted-foreground py-8">
-          Keine Biere gefunden für "{searchTerm}"
+          Keine Biere gefunden für &quot;{searchTerm}&quot;
         </p>
       )}
     </div>
