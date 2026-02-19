@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,11 +14,44 @@ export function VoterManagement() {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState<string>("");
 
+  // Existing voters state
+  const [existingVoters, setExistingVoters] = useState<string[]>([]);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
   const getBaseUrl = () => {
     if (baseUrl.trim()) return baseUrl.trim();
     if (typeof window !== "undefined") return window.location.origin;
     return "https://example.com";
   };
+
+  const fetchExistingVoters = async () => {
+    setLoadingExisting(true);
+    try {
+      const response = await fetch("/api/admin/voters", {
+        credentials: "include",
+      });
+
+      if (response.status === 401) {
+        throw new Error("Nicht autorisiert - bitte erneut anmelden");
+      }
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Laden der Voter");
+      }
+
+      const data = await response.json();
+      setExistingVoters(data.voters);
+    } catch (error) {
+      console.error("Error fetching voters:", error);
+    } finally {
+      setLoadingExisting(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchExistingVoters();
+  }, []);
 
   const generateVoterCards = async () => {
     const count = parseInt(voterCount, 10);
@@ -31,7 +64,6 @@ export function VoterManagement() {
     setProgress("Generiere Voter-IDs...");
 
     try {
-      // Generate voters via API (credentials: include ensures Basic Auth is sent)
       const response = await fetch("/api/admin/voters/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,10 +85,12 @@ export function VoterManagement() {
 
       setProgress(`${voterIds.length} Voter erstellt. Generiere PDF...`);
 
-      // Generate PDF
-      await generatePDF(voterIds);
+      await generateFullPagePDF(voterIds, `voter-cards-${new Date().toISOString().slice(0, 10)}.pdf`);
 
       setProgress(`Fertig! ${voterIds.length} Voter-Karten erstellt.`);
+
+      // Refresh existing voters list
+      fetchExistingVoters();
     } catch (error) {
       console.error("Error:", error);
       alert("Fehler beim Generieren: " + (error as Error).message);
@@ -66,23 +100,33 @@ export function VoterManagement() {
     }
   };
 
-  const generatePDF = async (voterIds: string[]) => {
+  const exportExistingVoters = async () => {
+    if (existingVoters.length === 0) return;
+
+    setExporting(true);
+    setProgress("Exportiere QR-Codes...");
+
+    try {
+      await generateFullPagePDF(
+        existingVoters,
+        `voter-qr-codes-${new Date().toISOString().slice(0, 10)}.pdf`
+      );
+      setProgress(`Fertig! ${existingVoters.length} QR-Codes exportiert.`);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Fehler beim Exportieren: " + (error as Error).message);
+      setProgress("");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const generateFullPagePDF = async (voterIds: string[], filename: string) => {
     const base = getBaseUrl();
 
     // A4 dimensions in mm
     const pageWidth = 210;
     const pageHeight = 297;
-
-    // Card layout: 2 columns x 5 rows = 10 cards per page
-    const cols = 2;
-    const rows = 5;
-    const cardsPerPage = cols * rows;
-
-    // Margins and spacing
-    const marginX = 10;
-    const marginY = 10;
-    const cardWidth = (pageWidth - marginX * 2) / cols;
-    const cardHeight = (pageHeight - marginY * 2) / rows;
 
     // QR code size
     const qrSize = 35;
@@ -93,118 +137,48 @@ export function VoterManagement() {
       format: "a4",
     });
 
-    const totalPages = Math.ceil(voterIds.length / cardsPerPage);
-
-    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
-      if (pageIndex > 0) {
+    for (let i = 0; i < voterIds.length; i++) {
+      if (i > 0) {
         pdf.addPage();
       }
 
-      setProgress(
-        `Generiere Seite ${pageIndex + 1} von ${totalPages}...`
-      );
+      setProgress(`Generiere Seite ${i + 1} von ${voterIds.length}...`);
 
-      const startIndex = pageIndex * cardsPerPage;
-      const endIndex = Math.min(startIndex + cardsPerPage, voterIds.length);
-      const pageVoters = voterIds.slice(startIndex, endIndex);
+      const voterId = voterIds[i];
+      const registerUrl = `${base}/register/${voterId}`;
+      const qrDataUrl = await QRCode.toDataURL(registerUrl, {
+        width: 200,
+        margin: 1,
+        errorCorrectionLevel: "M",
+      });
 
-      // Draw cutting lines for the entire grid
-      drawCuttingLines(pdf, marginX, marginY, cardWidth, cardHeight, cols, rows);
+      // Center QR code on page
+      const qrX = (pageWidth - qrSize) / 2;
+      const qrY = (pageHeight - qrSize) / 2 - 10; // slightly above center to leave room for text
+      pdf.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
-      // Generate cards for this page
-      for (let i = 0; i < pageVoters.length; i++) {
-        const voterId = pageVoters[i];
-        const col = i % cols;
-        const row = Math.floor(i / cols);
+      // Title text centered below QR code
+      pdf.setFontSize(14);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(0, 0, 0);
+      pdf.text("Bier Voting", pageWidth / 2, qrY + qrSize + 10, { align: "center" });
 
-        const x = marginX + col * cardWidth;
-        const y = marginY + row * cardHeight;
+      // Instruction text
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(80, 80, 80);
+      pdf.text("QR-Code scannen zum Abstimmen", pageWidth / 2, qrY + qrSize + 18, {
+        align: "center",
+      });
 
-        // Generate QR code
-        const registerUrl = `${base}/register/${voterId}`;
-        const qrDataUrl = await QRCode.toDataURL(registerUrl, {
-          width: 200,
-          margin: 1,
-          errorCorrectionLevel: "M",
-        });
-
-        // Draw card content
-        drawCard(pdf, x, y, cardWidth, cardHeight, qrDataUrl, qrSize, voterId);
-      }
+      // Voter ID (truncated)
+      pdf.setFontSize(7);
+      pdf.setTextColor(150, 150, 150);
+      const shortId = voterId.slice(0, 8) + "...";
+      pdf.text(shortId, pageWidth / 2, qrY + qrSize + 25, { align: "center" });
     }
 
-    // Save PDF
-    const timestamp = new Date().toISOString().slice(0, 10);
-    pdf.save(`voter-cards-${timestamp}.pdf`);
-  };
-
-  const drawCuttingLines = (
-    pdf: jsPDF,
-    marginX: number,
-    marginY: number,
-    cardWidth: number,
-    cardHeight: number,
-    cols: number,
-    rows: number
-  ) => {
-    pdf.setDrawColor(150, 150, 150);
-    pdf.setLineWidth(0.2);
-    pdf.setLineDashPattern([2, 2], 0);
-
-    // Vertical lines
-    for (let col = 0; col <= cols; col++) {
-      const x = marginX + col * cardWidth;
-      pdf.line(x, marginY, x, marginY + rows * cardHeight);
-    }
-
-    // Horizontal lines
-    for (let row = 0; row <= rows; row++) {
-      const y = marginY + row * cardHeight;
-      pdf.line(marginX, y, marginX + cols * cardWidth, y);
-    }
-
-    // Reset line style
-    pdf.setLineDashPattern([], 0);
-  };
-
-  const drawCard = (
-    pdf: jsPDF,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    qrDataUrl: string,
-    qrSize: number,
-    voterId: string
-  ) => {
-    const centerX = x + width / 2;
-    const padding = 5;
-
-    // QR code centered horizontally, near top of card
-    const qrX = centerX - qrSize / 2;
-    const qrY = y + padding + 3;
-    pdf.addImage(qrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
-
-    // Title text
-    pdf.setFontSize(10);
-    pdf.setFont("helvetica", "bold");
-    pdf.setTextColor(0, 0, 0);
-    const title = "Bier Voting";
-    pdf.text(title, centerX, qrY + qrSize + 6, { align: "center" });
-
-    // Instruction text
-    pdf.setFontSize(7);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(80, 80, 80);
-    pdf.text("QR-Code scannen zum Abstimmen", centerX, qrY + qrSize + 11, {
-      align: "center",
-    });
-
-    // Voter ID (truncated for display)
-    pdf.setFontSize(5);
-    pdf.setTextColor(150, 150, 150);
-    const shortId = voterId.slice(0, 8) + "...";
-    pdf.text(shortId, centerX, y + height - padding, { align: "center" });
+    pdf.save(filename);
   };
 
   return (
@@ -300,12 +274,12 @@ export function VoterManagement() {
               </div>
               <div>
                 <span className="font-medium text-foreground">
-                  {Math.ceil((parseInt(voterCount) || 0) / 10)}
+                  {parseInt(voterCount) || 0}
                 </span>{" "}
                 A4-Seiten
               </div>
-              <div>10 Karten pro Seite</div>
-              <div>Mit Schnittlinien</div>
+              <div>1 QR-Code pro Seite</div>
+              <div>Zentriert auf A4</div>
             </div>
           </div>
 
@@ -319,12 +293,50 @@ export function VoterManagement() {
           {/* Generate Button */}
           <Button
             onClick={generateVoterCards}
-            disabled={generating || !voterCount || parseInt(voterCount) < 1}
+            disabled={generating || exporting || !voterCount || parseInt(voterCount) < 1}
             size="lg"
             className="w-full h-14 text-lg font-semibold"
           >
             <Download className="h-5 w-5 mr-2" />
             {generating ? "Generiere..." : "Voter generieren & PDF erstellen"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Existing Voters Export Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <QrCode className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle>Bestehende Voter exportieren</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                QR-Codes für bereits vorhandene Voter als PDF exportieren
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 rounded-lg bg-muted/50 border">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground text-lg">
+                {loadingExisting ? "..." : existingVoters.length}
+              </span>{" "}
+              Voter in der Datenbank
+            </div>
+          </div>
+
+          <Button
+            onClick={exportExistingVoters}
+            disabled={exporting || generating || loadingExisting || existingVoters.length === 0}
+            size="lg"
+            className="w-full h-14 text-lg font-semibold"
+            variant="outline"
+          >
+            <Download className="h-5 w-5 mr-2" />
+            {exporting ? "Exportiere..." : "QR-Codes exportieren"}
           </Button>
         </CardContent>
       </Card>
