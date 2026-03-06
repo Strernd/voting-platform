@@ -366,12 +366,14 @@ export function VotingDrawer({
           )}
 
           {/* Recipe Link */}
-          <Button variant="outline" className="w-full" asChild>
-            <a href={beer.recipeLink} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Rezept ansehen
-            </a>
-          </Button>
+          {beer.recipeLink?.trim() && (
+            <Button variant="outline" className="w-full" asChild>
+              <a href={beer.recipeLink} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Rezept ansehen
+              </a>
+            </Button>
+          )}
         </div>
       </DrawerContent>
     </Drawer>
