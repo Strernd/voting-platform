@@ -66,7 +66,7 @@ export async function toggleVoteForBeer(
   presentationVotes: string[];
 }> {
   try {
-    // Check if voting is enabled
+    // Check if voting is enabled (uses cache)
     const settings = await getCompetitionSettings();
     if (!settings.votingEnabled) {
       return {
@@ -90,107 +90,108 @@ export async function toggleVoteForBeer(
       };
     }
 
-    // Check if voter exists and is active
-    const voterRecords = await db
-      .select()
-      .from(voters)
-      .where(eq(voters.id, voterUuid));
-    if (voterRecords.length === 0 || !voterRecords[0].active) {
-      return {
-        success: false,
-        message: "Ungultige oder inaktive Registrierung",
-        bestBeerVotes: [],
-        presentationVotes: [],
-      };
-    }
+    const result = await db.transaction(async (tx) => {
+      // Check if voter exists and is active
+      const voterRecords = await tx
+        .select()
+        .from(voters)
+        .where(eq(voters.id, voterUuid));
+      if (voterRecords.length === 0 || !voterRecords[0].active) {
+        return {
+          success: false,
+          message: "Ungultige oder inaktive Registrierung",
+          bestBeerVotes: [] as string[],
+          presentationVotes: [] as string[],
+        };
+      }
 
-    // Get active round
-    const activeRoundRecords = await db
-      .select()
-      .from(rounds)
-      .where(eq(rounds.active, true));
+      // Get active round
+      const activeRoundRecords = await tx
+        .select()
+        .from(rounds)
+        .where(eq(rounds.active, true));
 
-    if (activeRoundRecords.length === 0) {
-      return {
-        success: false,
-        message: "Keine aktive Runde verfugbar",
-        bestBeerVotes: [],
-        presentationVotes: [],
-      };
-    }
+      if (activeRoundRecords.length === 0) {
+        return {
+          success: false,
+          message: "Keine aktive Runde verfugbar",
+          bestBeerVotes: [] as string[],
+          presentationVotes: [] as string[],
+        };
+      }
 
-    const activeRound = activeRoundRecords[0];
+      const activeRound = activeRoundRecords[0];
 
-    // Check if beer is registered in active round
-    const beerInRound = await db
-      .select()
-      .from(beerRegistrations)
-      .where(
-        and(
-          eq(beerRegistrations.beerId, beerId),
-          eq(beerRegistrations.roundId, activeRound.id)
-        )
-      );
-
-    if (beerInRound.length === 0) {
-      return {
-        success: false,
-        message: "Bier ist in der aktuellen Runde nicht verfugbar",
-        bestBeerVotes: [],
-        presentationVotes: [],
-      };
-    }
-
-    // Helper to get current votes by type
-    const getVotesByType = async () => {
-      const allVotes = await db
-        .select({ beerId: votes.beerId, voteType: votes.voteType })
-        .from(votes)
+      // Check if beer is registered in active round
+      const beerInRound = await tx
+        .select()
+        .from(beerRegistrations)
         .where(
-          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
+          and(
+            eq(beerRegistrations.beerId, beerId),
+            eq(beerRegistrations.roundId, activeRound.id)
+          )
         );
 
-      return {
-        bestBeerVotes: allVotes
-          .filter((v) => v.voteType === VOTE_TYPES.BEST_BEER)
-          .map((v) => v.beerId),
-        presentationVotes: allVotes
-          .filter((v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION)
-          .map((v) => v.beerId),
+      if (beerInRound.length === 0) {
+        return {
+          success: false,
+          message: "Bier ist in der aktuellen Runde nicht verfugbar",
+          bestBeerVotes: [] as string[],
+          presentationVotes: [] as string[],
+        };
+      }
+
+      // Helper to get current votes by type
+      const getVotesByType = async () => {
+        const allVotes = await tx
+          .select({ beerId: votes.beerId, voteType: votes.voteType })
+          .from(votes)
+          .where(
+            and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
+          );
+
+        return {
+          bestBeerVotes: allVotes
+            .filter((v) => v.voteType === VOTE_TYPES.BEST_BEER)
+            .map((v) => v.beerId),
+          presentationVotes: allVotes
+            .filter((v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION)
+            .map((v) => v.beerId),
+        };
       };
-    };
 
-    // Check if voter has already voted for this beer with this voteType in this round
-    const existingVote = await db
-      .select()
-      .from(votes)
-      .where(
-        and(
-          eq(votes.voterId, voterUuid),
-          eq(votes.beerId, beerId),
-          eq(votes.roundId, activeRound.id),
-          eq(votes.voteType, voteType)
-        )
-      );
+      // Check if voter has already voted for this beer with this voteType in this round
+      const existingVote = await tx
+        .select()
+        .from(votes)
+        .where(
+          and(
+            eq(votes.voterId, voterUuid),
+            eq(votes.beerId, beerId),
+            eq(votes.roundId, activeRound.id),
+            eq(votes.voteType, voteType)
+          )
+        );
 
-    if (existingVote.length > 0) {
-      // Remove the vote (toggle off)
-      await db.delete(votes).where(eq(votes.id, existingVote[0].id));
-      revalidatePath("/");
+      if (existingVote.length > 0) {
+        // Remove the vote (toggle off)
+        await tx.delete(votes).where(eq(votes.id, existingVote[0].id));
 
-      const currentVotes = await getVotesByType();
-      return {
-        success: true,
-        message:
-          voteType === VOTE_TYPES.BEST_PRESENTATION
-            ? "Schaumkrönchen entfernt"
-            : "Stimme entfernt",
-        ...currentVotes,
-      };
-    } else {
+        const currentVotes = await getVotesByType();
+        return {
+          success: true,
+          message:
+            voteType === VOTE_TYPES.BEST_PRESENTATION
+              ? "Schaumkrönchen entfernt"
+              : "Stimme entfernt",
+          ...currentVotes,
+        };
+      }
+
       // For presentation votes, check if user already has a vote for a different beer
       if (voteType === VOTE_TYPES.BEST_PRESENTATION) {
-        const existingPresentationVote = await db
+        const existingPresentationVote = await tx
           .select()
           .from(votes)
           .where(
@@ -213,14 +214,12 @@ export async function toggleVoteForBeer(
       }
 
       // Add new vote
-      await db.insert(votes).values({
+      await tx.insert(votes).values({
         voterId: voterUuid,
         beerId: beerId,
         roundId: activeRound.id,
         voteType: voteType,
       });
-
-      revalidatePath("/");
 
       const currentVotes = await getVotesByType();
       return {
@@ -231,7 +230,10 @@ export async function toggleVoteForBeer(
             : "Stimme hinzugefugt",
         ...currentVotes,
       };
-    }
+    });
+
+    revalidatePath("/");
+    return result;
   } catch (error) {
     console.error("Voting error:", error);
     return {
@@ -307,7 +309,8 @@ export async function setActiveRound(roundId: number): Promise<{ success: boolea
     
     // Activate the specified round
     await db.update(rounds).set({ active: true }).where(eq(rounds.id, roundId));
-    
+
+    cachedActiveRound = null;
     revalidatePath("/");
     revalidatePath("/admin");
     return { success: true, message: "Active round updated successfully!" };
@@ -353,9 +356,16 @@ export async function getRounds() {
 }
 
 export async function getActiveRound() {
+  const now = Date.now();
+  if (cachedActiveRound && now - activeRoundCacheTime < CACHE_TTL) {
+    return cachedActiveRound.round;
+  }
   try {
     const activeRounds = await db.select().from(rounds).where(eq(rounds.active, true));
-    return activeRounds.length > 0 ? activeRounds[0] : null;
+    const round = activeRounds.length > 0 ? activeRounds[0] : null;
+    cachedActiveRound = { round };
+    activeRoundCacheTime = now;
+    return round;
   } catch (error) {
     console.error("Error getting active round:", error);
     return null;
@@ -382,15 +392,28 @@ export async function getAllAssignedBeerIds() {
 }
 
 // Competition settings actions
+let cachedSettings: CompetitionSettings | null = null;
+let settingsCacheTime = 0;
+let cachedActiveRound: { round: { id: number; name: string; active: boolean } | null } | null = null;
+let activeRoundCacheTime = 0;
+const CACHE_TTL = 10_000; // 10 seconds
+
 export async function getCompetitionSettings(): Promise<CompetitionSettings> {
+  const now = Date.now();
+  if (cachedSettings && now - settingsCacheTime < CACHE_TTL) {
+    return cachedSettings;
+  }
   try {
     const settings = await db.select().from(competitionSettings).where(eq(competitionSettings.id, 1));
     if (settings.length === 0) {
       // Create default settings
       await db.insert(competitionSettings).values({ id: 1 });
-      return { id: 1, votingEnabled: false, startbahnCount: 50 };
+      cachedSettings = { id: 1, votingEnabled: false, startbahnCount: 50 };
+    } else {
+      cachedSettings = settings[0];
     }
-    return settings[0];
+    settingsCacheTime = now;
+    return cachedSettings;
   } catch (error) {
     console.error("Error getting competition settings:", error);
     return { id: 1, votingEnabled: false, startbahnCount: 50 };
@@ -408,6 +431,7 @@ export async function updateCompetitionSettings(
     } else {
       await db.update(competitionSettings).set(settings).where(eq(competitionSettings.id, 1));
     }
+    cachedSettings = null;
     revalidatePath("/");
     revalidatePath("/admin");
     return { success: true, message: "Einstellungen gespeichert" };
