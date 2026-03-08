@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -62,6 +62,8 @@ export const votes = sqliteTable(
     uniqueIndex("votes_presentation_unique")
       .on(table.voterId, table.roundId)
       .where(sql`${table.voteType} = 'best_presentation'`),
+    index("votes_round_id_idx").on(table.roundId),
+    index("votes_voter_round_type_idx").on(table.voterId, table.roundId, table.voteType),
   ]
 );
 
