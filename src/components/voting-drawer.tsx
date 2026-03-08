@@ -30,6 +30,7 @@ interface VotingDrawerProps {
   bestBeerVoteIds: string[];
   presentationVoteIds: string[];
   votingEnabled?: boolean;
+  onVotesChanged?: (bestBeer: string[], presentation: string[]) => void;
 }
 
 export function VotingDrawer({
@@ -38,21 +39,18 @@ export function VotingDrawer({
   bestBeerVoteIds,
   presentationVoteIds,
   votingEnabled = true,
+  onVotesChanged,
 }: VotingDrawerProps) {
   const [isVoting, setIsVoting] = useState(false);
   const [voteResult, setVoteResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
-  const [localBestBeerVoteIds, setLocalBestBeerVoteIds] =
-    useState<string[]>(bestBeerVoteIds);
-  const [localPresentationVoteIds, setLocalPresentationVoteIds] =
-    useState<string[]>(presentationVoteIds);
   const [activeTab, setActiveTab] = useState<string>("best_beer");
 
-  const isBestBeerVote = localBestBeerVoteIds.includes(beer.beerId);
-  const isPresentationVote = localPresentationVoteIds.includes(beer.beerId);
-  const bestBeerVoteCount = localBestBeerVoteIds.length;
+  const isBestBeerVote = bestBeerVoteIds.includes(beer.beerId);
+  const isPresentationVote = presentationVoteIds.includes(beer.beerId);
+  const bestBeerVoteCount = bestBeerVoteIds.length;
   const voteWeight =
     bestBeerVoteCount > 0 ? (1 / bestBeerVoteCount).toFixed(2) : "1.00";
   const newVoteWeight = isBestBeerVote
@@ -82,11 +80,8 @@ export function VotingDrawer({
     try {
       const result = await toggleVoteForBeer(beer.beerId, voteType);
       setVoteResult({ success: result.success, message: result.message });
-      if (result.bestBeerVotes) {
-        setLocalBestBeerVoteIds(result.bestBeerVotes);
-      }
-      if (result.presentationVotes) {
-        setLocalPresentationVoteIds(result.presentationVotes);
+      if (result.bestBeerVotes && result.presentationVotes) {
+        onVotesChanged?.(result.bestBeerVotes, result.presentationVotes);
       }
     } catch (error) {
       setVoteResult({
@@ -306,7 +301,7 @@ export function VotingDrawer({
 
               {/* Presentation Vote Status */}
               {!isPresentationVote &&
-                localPresentationVoteIds.length > 0 && (
+                presentationVoteIds.length > 0 && (
                   <div className="p-4 rounded-xl bg-malt/10 border border-malt/30">
                     <p className="text-foreground text-sm">
                       Du hast das Schaumkrönchen bereits an ein anderes Bier

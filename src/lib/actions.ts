@@ -142,93 +142,79 @@ export async function toggleVoteForBeer(
         };
       }
 
-      // Helper to get current votes by type
-      const getVotesByType = async () => {
-        const allVotes = await tx
-          .select({ beerId: votes.beerId, voteType: votes.voteType })
-          .from(votes)
-          .where(
-            and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
-          );
-
-        return {
-          bestBeerVotes: allVotes
-            .filter((v) => v.voteType === VOTE_TYPES.BEST_BEER)
-            .map((v) => v.beerId),
-          presentationVotes: allVotes
-            .filter((v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION)
-            .map((v) => v.beerId),
-        };
-      };
-
-      // Check if voter has already voted for this beer with this voteType in this round
-      const existingVote = await tx
-        .select()
+      // Fetch all current votes for this voter+round once upfront
+      const allCurrentVotes = await tx
+        .select({ beerId: votes.beerId, voteType: votes.voteType, id: votes.id })
         .from(votes)
         .where(
-          and(
-            eq(votes.voterId, voterUuid),
-            eq(votes.beerId, beerId),
-            eq(votes.roundId, activeRound.id),
-            eq(votes.voteType, voteType)
-          )
+          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
         );
 
-      if (existingVote.length > 0) {
+      const existingVote = allCurrentVotes.find(
+        (v) => v.beerId === beerId && v.voteType === voteType
+      );
+
+      let message: string;
+
+      if (existingVote) {
         // Remove the vote (toggle off)
-        await tx.delete(votes).where(eq(votes.id, existingVote[0].id));
-
-        const currentVotes = await getVotesByType();
-        return {
-          success: true,
-          message:
-            voteType === VOTE_TYPES.BEST_PRESENTATION
-              ? "Schaumkrönchen entfernt"
-              : "Stimme entfernt",
-          ...currentVotes,
-        };
-      }
-
-      // For presentation votes, check if user already has a vote for a different beer
-      if (voteType === VOTE_TYPES.BEST_PRESENTATION) {
-        const existingPresentationVote = await tx
-          .select()
-          .from(votes)
-          .where(
-            and(
-              eq(votes.voterId, voterUuid),
-              eq(votes.roundId, activeRound.id),
-              eq(votes.voteType, VOTE_TYPES.BEST_PRESENTATION)
-            )
+        await tx.delete(votes).where(eq(votes.id, existingVote.id));
+        message =
+          voteType === VOTE_TYPES.BEST_PRESENTATION
+            ? "Schaumkrönchen entfernt"
+            : "Stimme entfernt";
+      } else {
+        // For presentation votes, check if user already has one
+        if (voteType === VOTE_TYPES.BEST_PRESENTATION) {
+          const hasPresentation = allCurrentVotes.some(
+            (v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION
           );
-
-        if (existingPresentationVote.length > 0) {
-          const currentVotes = await getVotesByType();
-          return {
-            success: false,
-            message:
-              "Du hast bereits ein Schaumkrönchen vergeben. Entferne es zuerst.",
-            ...currentVotes,
-          };
+          if (hasPresentation) {
+            return {
+              success: false,
+              message:
+                "Du hast bereits ein Schaumkrönchen vergeben. Entferne es zuerst.",
+              bestBeerVotes: allCurrentVotes
+                .filter((v) => v.voteType === VOTE_TYPES.BEST_BEER)
+                .map((v) => v.beerId),
+              presentationVotes: allCurrentVotes
+                .filter((v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION)
+                .map((v) => v.beerId),
+            };
+          }
         }
-      }
 
-      // Add new vote
-      await tx.insert(votes).values({
-        voterId: voterUuid,
-        beerId: beerId,
-        roundId: activeRound.id,
-        voteType: voteType,
-      });
+        // Add new vote
+        await tx.insert(votes).values({
+          voterId: voterUuid,
+          beerId: beerId,
+          roundId: activeRound.id,
+          voteType: voteType,
+        });
 
-      const currentVotes = await getVotesByType();
-      return {
-        success: true,
-        message:
+        message =
           voteType === VOTE_TYPES.BEST_PRESENTATION
             ? "Schaumkrönchen vergeben"
-            : "Stimme hinzugefugt",
-        ...currentVotes,
+            : "Stimme hinzugefugt";
+      }
+
+      // Single query to get final vote state after mutation
+      const finalVotes = await tx
+        .select({ beerId: votes.beerId, voteType: votes.voteType })
+        .from(votes)
+        .where(
+          and(eq(votes.voterId, voterUuid), eq(votes.roundId, activeRound.id))
+        );
+
+      return {
+        success: true,
+        message,
+        bestBeerVotes: finalVotes
+          .filter((v) => v.voteType === VOTE_TYPES.BEST_BEER)
+          .map((v) => v.beerId),
+        presentationVotes: finalVotes
+          .filter((v) => v.voteType === VOTE_TYPES.BEST_PRESENTATION)
+          .map((v) => v.beerId),
       };
     });
 
@@ -306,7 +292,7 @@ export async function setActiveRound(roundId: number): Promise<{ success: boolea
   try {
     // Deactivate all rounds first
     await db.update(rounds).set({ active: false });
-    
+
     // Activate the specified round
     await db.update(rounds).set({ active: true }).where(eq(rounds.id, roundId));
 
@@ -324,19 +310,19 @@ export async function assignBeersToRound(roundId: number, beerIds: string[]): Pr
   try {
     // Remove existing beer assignments for this round
     await db.delete(beerRounds).where(eq(beerRounds.roundId, roundId));
-    
+
     // Remove these beers from all other rounds (one beer can only be in one round)
     if (beerIds.length > 0) {
       for (const beerId of beerIds) {
         await db.delete(beerRounds).where(eq(beerRounds.beerId, beerId));
       }
-      
+
       // Add new assignments
       await db.insert(beerRounds).values(
         beerIds.map(beerId => ({ beerId, roundId }))
       );
     }
-    
+
     revalidatePath("/");
     revalidatePath("/admin");
     return { success: true, message: "Beers assigned to round successfully!" };

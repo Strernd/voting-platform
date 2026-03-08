@@ -10,6 +10,7 @@ interface BeerCardProps {
   bestBeerVoteIds: string[];
   presentationVoteIds: string[];
   votingEnabled?: boolean;
+  onVotesChanged?: (bestBeer: string[], presentation: string[]) => void;
 }
 
 export function BeerCard({
@@ -18,6 +19,7 @@ export function BeerCard({
   bestBeerVoteIds,
   presentationVoteIds,
   votingEnabled = true,
+  onVotesChanged,
 }: BeerCardProps) {
   const isBestBeerVote = bestBeerVoteIds.includes(beer.beerId);
   const isPresentationVote = presentationVoteIds.includes(beer.beerId);
@@ -129,6 +131,7 @@ export function BeerCard({
                 bestBeerVoteIds={bestBeerVoteIds}
                 presentationVoteIds={presentationVoteIds}
                 votingEnabled={votingEnabled}
+                onVotesChanged={onVotesChanged}
               />
             </div>
           </div>

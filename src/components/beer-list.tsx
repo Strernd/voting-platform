@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BeerCard } from "@/components/beer-card";
@@ -20,12 +20,19 @@ export function BeerList({
   beers,
   voterUuid,
   isRegistered,
-  bestBeerVoteIds,
-  presentationVoteIds,
+  bestBeerVoteIds: initialBestBeerVoteIds,
+  presentationVoteIds: initialPresentationVoteIds,
   votingEnabled = true,
 }: BeerListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStyle, setSelectedStyle] = useState<string>("all");
+  const [bestBeerVoteIds, setBestBeerVoteIds] = useState<string[]>(initialBestBeerVoteIds);
+  const [presentationVoteIds, setPresentationVoteIds] = useState<string[]>(initialPresentationVoteIds);
+
+  const onVotesChanged = useCallback((newBestBeer: string[], newPresentation: string[]) => {
+    setBestBeerVoteIds(newBestBeer);
+    setPresentationVoteIds(newPresentation);
+  }, []);
 
   const styleOptions = useMemo(() => {
     const styleCounts = beers.reduce((acc, beer) => {
@@ -109,6 +116,7 @@ export function BeerList({
             bestBeerVoteIds={bestBeerVoteIds}
             presentationVoteIds={presentationVoteIds}
             votingEnabled={votingEnabled}
+            onVotesChanged={onVotesChanged}
           />
         ))}
       </div>
