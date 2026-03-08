@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { eq, and, inArray, notInArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { validateAdminAuth } from "@/lib/admin-auth";
 
 const SESSION_COOKIE_NAME = "voter_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
@@ -278,6 +279,9 @@ export async function getCurrentVotes(): Promise<{
 
 // Round management actions
 export async function createRound(name: string): Promise<{ success: boolean; message: string; roundId?: number }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     const result = await db.insert(rounds).values({ name }).returning({ id: rounds.id });
     revalidatePath("/admin");
@@ -289,6 +293,9 @@ export async function createRound(name: string): Promise<{ success: boolean; mes
 }
 
 export async function setActiveRound(roundId: number): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     // Deactivate all rounds first
     await db.update(rounds).set({ active: false });
@@ -307,6 +314,9 @@ export async function setActiveRound(roundId: number): Promise<{ success: boolea
 }
 
 export async function assignBeersToRound(roundId: number, beerIds: string[]): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     // Remove existing beer assignments for this round
     await db.delete(beerRounds).where(eq(beerRounds.roundId, roundId));
@@ -333,6 +343,9 @@ export async function assignBeersToRound(roundId: number, beerIds: string[]): Pr
 }
 
 export async function getRounds() {
+  if (!(await validateAdminAuth())) {
+    return [];
+  }
   try {
     return await db.select().from(rounds);
   } catch (error) {
@@ -359,6 +372,9 @@ export async function getActiveRound() {
 }
 
 export async function getBeersInRound(roundId: number) {
+  if (!(await validateAdminAuth())) {
+    return [];
+  }
   try {
     return await db.select().from(beerRounds).where(eq(beerRounds.roundId, roundId));
   } catch (error) {
@@ -368,6 +384,9 @@ export async function getBeersInRound(roundId: number) {
 }
 
 export async function getAllAssignedBeerIds() {
+  if (!(await validateAdminAuth())) {
+    return new Set<string>();
+  }
   try {
     const assignedBeers = await db.select({ beerId: beerRounds.beerId }).from(beerRounds);
     return new Set(assignedBeers.map(b => b.beerId));
@@ -409,6 +428,9 @@ export async function getCompetitionSettings(): Promise<CompetitionSettings> {
 export async function updateCompetitionSettings(
   settings: Partial<Pick<CompetitionSettings, "votingEnabled" | "startbahnCount">>
 ): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     // Ensure settings row exists
     const existing = await db.select().from(competitionSettings).where(eq(competitionSettings.id, 1));
@@ -444,6 +466,9 @@ export async function registerBeer(
   roundId: number,
   reinheitsgebot: boolean
 ): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     const settings = await getCompetitionSettings();
 
@@ -492,6 +517,9 @@ export async function registerBeer(
 }
 
 export async function getAvailableStartbahns(roundId: number): Promise<number[]> {
+  if (!(await validateAdminAuth())) {
+    return [];
+  }
   try {
     const settings = await getCompetitionSettings();
     const usedStartbahns = await db
@@ -523,6 +551,9 @@ export async function getRegisteredBeers(): Promise<BeerRegistration[]> {
 }
 
 export async function getRegisteredBeerIds(): Promise<Set<string>> {
+  if (!(await validateAdminAuth())) {
+    return new Set<string>();
+  }
   try {
     const registrations = await db.select({ beerId: beerRegistrations.beerId }).from(beerRegistrations);
     return new Set(registrations.map((r) => r.beerId));
@@ -536,6 +567,9 @@ export async function updateBeerRegistration(
   beerId: string,
   updates: Partial<Pick<BeerRegistration, "startbahn" | "roundId" | "reinheitsgebot">>
 ): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     const currentReg = await db
       .select()
@@ -582,6 +616,9 @@ export async function updateBeerRegistration(
 }
 
 export async function unregisterBeer(beerId: string): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     await db.delete(beerRegistrations).where(eq(beerRegistrations.beerId, beerId));
     await db.delete(beerRounds).where(eq(beerRounds.beerId, beerId));
@@ -596,6 +633,9 @@ export async function unregisterBeer(beerId: string): Promise<{ success: boolean
 
 // Startbahn config actions
 export async function getStartbahnConfigs(): Promise<StartbahnConfig[]> {
+  if (!(await validateAdminAuth())) {
+    return [];
+  }
   try {
     return await db.select().from(startbahnConfigs);
   } catch (error) {
@@ -608,6 +648,9 @@ export async function upsertStartbahnConfig(
   startbahn: number,
   name: string
 ): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -633,6 +676,9 @@ export async function upsertStartbahnConfig(
 export async function deleteStartbahnConfig(
   startbahn: number
 ): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
   try {
     await db.delete(startbahnConfigs).where(eq(startbahnConfigs.startbahn, startbahn));
     revalidatePath("/admin");

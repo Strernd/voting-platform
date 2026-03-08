@@ -3,8 +3,14 @@ import { db } from "@/lib/db";
 import { votes, beerRegistrations, VOTE_TYPES } from "@/db/schema";
 import { getAllBeers } from "@/lib/beer-data";
 import { eq, and } from "drizzle-orm";
+import { validateAdminAuth, unauthorizedResponse } from "@/lib/admin-auth";
 
 export async function GET(request: Request) {
+  const isAuthenticated = await validateAdminAuth();
+  if (!isAuthenticated) {
+    return unauthorizedResponse();
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const roundId = searchParams.get("roundId");
