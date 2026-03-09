@@ -1,6 +1,6 @@
 import { voters } from "@/db/schema";
 import { db } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -24,11 +24,19 @@ export async function GET(
     const cookieStore = await cookies();
     cookieStore.delete(SESSION_COOKIE_NAME);
 
-    // Validate UUID against database
-    const records = await db.select().from(voters).where(eq(voters.id, uuid));
-    const isValid = records.length > 0;
+    // Atomically claim the voter UUID — only succeeds if registeredAt is NULL
+    const result = await db
+      .update(voters)
+      .set({ registeredAt: new Date() })
+      .where(and(eq(voters.id, uuid), isNull(voters.registeredAt)))
+      .returning();
 
-    if (!isValid) {
+    if (result.length === 0) {
+      // Either UUID doesn't exist or was already claimed
+      const existing = await db.select().from(voters).where(eq(voters.id, uuid));
+      if (existing.length > 0 && existing[0].registeredAt) {
+        redirect("/register/claimed");
+      }
       redirect("/register/error");
     }
 
