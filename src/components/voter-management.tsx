@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Download, QrCode, FileText } from "lucide-react";
+import { Users, Download, QrCode, FileText, RotateCcw } from "lucide-react";
+import { resetVoterRegistration } from "@/lib/actions";
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
 
@@ -18,6 +19,9 @@ export function VoterManagement() {
   const [existingVoters, setExistingVoters] = useState<string[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [resetId, setResetId] = useState("");
+  const [resetting, setResetting] = useState(false);
+  const [deleteVotes, setDeleteVotes] = useState(true);
 
   const getBaseUrl = () => {
     if (baseUrl.trim()) return baseUrl.trim();
@@ -118,6 +122,35 @@ export function VoterManagement() {
       setProgress("");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleResetVoter = async () => {
+    const trimmed = resetId.trim();
+    if (!trimmed) return;
+
+    const confirmMsg = deleteVotes
+      ? "Achtung: Alle Stimmen dieses Voters werden unwiderruflich gelöscht und die Registrierung zurückgesetzt. Fortfahren?"
+      : "Die Registrierung wird zurückgesetzt, Stimmen bleiben erhalten. Fortfahren?";
+
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    setResetting(true);
+    try {
+      const result = await resetVoterRegistration(trimmed, deleteVotes);
+      if (result.success) {
+        alert(result.message);
+        setResetId("");
+      } else {
+        alert("Fehler: " + result.message);
+      }
+    } catch (error) {
+      console.error("Error resetting voter:", error);
+      alert("Fehler beim Zurücksetzen");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -337,6 +370,90 @@ export function VoterManagement() {
           >
             <Download className="h-5 w-5 mr-2" />
             {exporting ? "Exportiere..." : "QR-Codes exportieren"}
+          </Button>
+        </CardContent>
+      </Card>
+      {/* Reset Voter Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <RotateCcw className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <CardTitle>Voter zurücksetzen</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Registrierung eines Voters zurücksetzen, damit der Code erneut gescannt werden kann
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <label className="block text-sm font-medium mb-2">
+              Voter-ID
+            </label>
+            <Input
+              type="text"
+              value={resetId}
+              onChange={(e) => setResetId(e.target.value)}
+              className="h-12 font-mono text-sm"
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            />
+            {resetId.trim().length > 0 &&
+              resetId.trim().length < 36 &&
+              existingVoters.filter((v) =>
+                v.toLowerCase().includes(resetId.trim().toLowerCase())
+              ).length > 0 && (
+                <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-md border bg-popover shadow-md">
+                  {existingVoters
+                    .filter((v) =>
+                      v.toLowerCase().includes(resetId.trim().toLowerCase())
+                    )
+                    .slice(0, 10)
+                    .map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setResetId(v)}
+                        className="w-full text-left px-3 py-2 font-mono text-sm hover:bg-accent cursor-pointer"
+                      >
+                        {v}
+                      </button>
+                    ))}
+                </div>
+              )}
+          </div>
+
+          <div className="p-4 rounded-lg bg-muted/50 border space-y-3">
+            <p className="text-sm font-medium">
+              Frage den Nutzer: &quot;Hast du mit diesem Code bereits abgestimmt?&quot;
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Falls ja → Stimmen beibehalten. Falls nein → Stimmen löschen, da sie von jemand anderem stammen.
+            </p>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={deleteVotes}
+                onChange={(e) => setDeleteVotes(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              <span className="text-sm">
+                Stimmen löschen <span className="text-muted-foreground">(Nutzer hat nicht selbst abgestimmt)</span>
+              </span>
+            </label>
+          </div>
+
+          <Button
+            onClick={handleResetVoter}
+            disabled={resetting || !resetId.trim()}
+            size="lg"
+            variant="destructive"
+            className="w-full h-14 text-lg font-semibold"
+          >
+            <RotateCcw className="h-5 w-5 mr-2" />
+            {resetting ? "Zurücksetzen..." : "Voter zurücksetzen"}
           </Button>
         </CardContent>
       </Card>

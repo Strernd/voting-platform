@@ -22,6 +22,9 @@ export const voters = sqliteTable("voters", {
     .primaryKey()
     .$defaultFn(() => uuidv4()),
   active: integer({ mode: "boolean" }).notNull().default(false),
+  registeredAt: integer("registered_at", { mode: "timestamp" }),
+  registeredIp: text("registered_ip"),
+  registeredUserAgent: text("registered_user_agent"),
 });
 
 export const rounds = sqliteTable("rounds", {
