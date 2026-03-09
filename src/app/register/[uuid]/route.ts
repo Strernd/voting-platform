@@ -24,10 +24,14 @@ export async function GET(
     const cookieStore = await cookies();
     cookieStore.delete(SESSION_COOKIE_NAME);
 
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      ?? request.headers.get("x-real-ip")
+      ?? "unknown";
+
     // Atomically claim the voter UUID — only succeeds if registeredAt is NULL
     const result = await db
       .update(voters)
-      .set({ registeredAt: new Date() })
+      .set({ registeredAt: new Date(), registeredIp: ip })
       .where(and(eq(voters.id, uuid), isNull(voters.registeredAt)))
       .returning();
 
