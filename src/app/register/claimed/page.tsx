@@ -28,10 +28,7 @@ function ClaimedContent() {
             </h1>
             <p className="text-muted-foreground">
               Dieser Benutzercode wurde bereits verwendet. Bitte wende dich an
-              Carsten oder Lagerbernd, um ihn zurückzusetzen.
-            </p>
-            <p className="text-muted-foreground mt-2 text-sm">
-              Achtung: Beim Zurücksetzen werden alle bisherigen Stimmen gelöscht.
+              Lagerbernd, um ihn zurückzusetzen.
             </p>
             {id && (
               <div className="mt-4 p-3 rounded-lg bg-muted font-mono text-sm break-all">
