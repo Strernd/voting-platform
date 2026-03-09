@@ -5,6 +5,7 @@ import { AdminTable } from "@/components/admin-table";
 import { CompetitionSettings } from "@/components/competition-settings";
 import { BeerRegistration } from "@/components/beer-registration";
 import { VoterManagement } from "@/components/voter-management";
+import { OperationsDashboard } from "@/components/operations-dashboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
   CheckCircle2,
   XCircle,
   Users,
+  Activity,
 } from "lucide-react";
 import type { Round } from "@/db/schema";
 
@@ -26,7 +28,7 @@ interface AdminSidebarProps {
   children?: React.ReactNode;
 }
 
-type TabId = "scores" | "registration" | "voters" | "settings";
+type TabId = "scores" | "registration" | "voters" | "operations" | "settings";
 
 const navItems: { id: TabId; label: string; icon: React.ReactNode }[] = [
   {
@@ -43,6 +45,11 @@ const navItems: { id: TabId; label: string; icon: React.ReactNode }[] = [
     id: "voters",
     label: "Voter-Karten",
     icon: <Users className="h-5 w-5" />,
+  },
+  {
+    id: "operations",
+    label: "Operations",
+    icon: <Activity className="h-5 w-5" />,
   },
   {
     id: "settings",
@@ -66,6 +73,8 @@ export function AdminSidebar({
         return <BeerRegistration />;
       case "voters":
         return <VoterManagement />;
+      case "operations":
+        return <OperationsDashboard />;
       case "settings":
         return <CompetitionSettings />;
       default:

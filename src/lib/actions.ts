@@ -277,6 +277,43 @@ export async function getCurrentVotes(): Promise<{
   }
 }
 
+// Voter reset action
+export async function resetVoterRegistration(
+  voterId: string,
+  deleteVotes: boolean = true
+): Promise<{ success: boolean; message: string }> {
+  if (!(await validateAdminAuth())) {
+    return { success: false, message: "Unauthorized" };
+  }
+  try {
+    const existing = await db.select().from(voters).where(eq(voters.id, voterId));
+    if (existing.length === 0) {
+      return { success: false, message: "Voter nicht gefunden" };
+    }
+
+    await db.transaction(async (tx) => {
+      if (deleteVotes) {
+        await tx.delete(votes).where(eq(votes.voterId, voterId));
+      }
+      await tx
+        .update(voters)
+        .set({ registeredAt: null, registeredIp: null, registeredUserAgent: null })
+        .where(eq(voters.id, voterId));
+    });
+
+    revalidatePath("/admin");
+    return {
+      success: true,
+      message: deleteVotes
+        ? "Registrierung und Stimmen zurückgesetzt"
+        : "Registrierung zurückgesetzt (Stimmen beibehalten)",
+    };
+  } catch (error) {
+    console.error("Error resetting voter:", error);
+    return { success: false, message: "Fehler beim Zurücksetzen" };
+  }
+}
+
 // Round management actions
 export async function createRound(name: string): Promise<{ success: boolean; message: string; roundId?: number }> {
   if (!(await validateAdminAuth())) {

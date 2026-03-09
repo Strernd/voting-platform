@@ -27,11 +27,12 @@ export async function GET(
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
       ?? request.headers.get("x-real-ip")
       ?? "unknown";
+    const userAgent = request.headers.get("user-agent") ?? "unknown";
 
     // Atomically claim the voter UUID — only succeeds if registeredAt is NULL
     const result = await db
       .update(voters)
-      .set({ registeredAt: new Date(), registeredIp: ip })
+      .set({ registeredAt: new Date(), registeredIp: ip, registeredUserAgent: userAgent })
       .where(and(eq(voters.id, uuid), isNull(voters.registeredAt)))
       .returning();
 
@@ -39,7 +40,7 @@ export async function GET(
       // Either UUID doesn't exist or was already claimed
       const existing = await db.select().from(voters).where(eq(voters.id, uuid));
       if (existing.length > 0 && existing[0].registeredAt) {
-        redirect("/register/claimed");
+        redirect(`/register/claimed?id=${uuid}`);
       }
       redirect("/register/error");
     }
