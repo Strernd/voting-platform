@@ -578,9 +578,18 @@ export async function getAvailableStartbahns(roundId: number): Promise<number[]>
   }
 }
 
+let cachedRegisteredBeers: BeerRegistration[] | null = null;
+let registeredBeersCacheTime = 0;
+
 export async function getRegisteredBeers(): Promise<BeerRegistration[]> {
+  const now = Date.now();
+  if (cachedRegisteredBeers && now - registeredBeersCacheTime < 180_000) {
+    return cachedRegisteredBeers;
+  }
   try {
-    return await db.select().from(beerRegistrations);
+    cachedRegisteredBeers = await db.select().from(beerRegistrations);
+    registeredBeersCacheTime = now;
+    return cachedRegisteredBeers;
   } catch (error) {
     console.error("Error getting registered beers:", error);
     return [];
