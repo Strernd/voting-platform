@@ -20,8 +20,15 @@ export async function GET(
   }
 
   try {
-    // Clear any existing session first
     const cookieStore = await cookies();
+
+    // If the user already has a session for this exact UUID, just redirect home
+    const existingSession = cookieStore.get(SESSION_COOKIE_NAME);
+    if (existingSession?.value === uuid) {
+      redirect("/");
+    }
+
+    // Clear any existing session for a different UUID
     cookieStore.delete(SESSION_COOKIE_NAME);
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
