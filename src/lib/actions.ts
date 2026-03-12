@@ -450,7 +450,7 @@ export async function getCompetitionSettings(): Promise<CompetitionSettings> {
     if (settings.length === 0) {
       // Create default settings
       await db.insert(competitionSettings).values({ id: 1 });
-      cachedSettings = { id: 1, votingEnabled: false, startbahnCount: 50 };
+      cachedSettings = { id: 1, votingEnabled: false, startbahnCount: 50, reclaimProtection: true };
     } else {
       cachedSettings = settings[0];
     }
@@ -458,12 +458,12 @@ export async function getCompetitionSettings(): Promise<CompetitionSettings> {
     return cachedSettings;
   } catch (error) {
     console.error("Error getting competition settings:", error);
-    return { id: 1, votingEnabled: false, startbahnCount: 50 };
+    return { id: 1, votingEnabled: false, startbahnCount: 50, reclaimProtection: true };
   }
 }
 
 export async function updateCompetitionSettings(
-  settings: Partial<Pick<CompetitionSettings, "votingEnabled" | "startbahnCount">>
+  settings: Partial<Pick<CompetitionSettings, "votingEnabled" | "startbahnCount" | "reclaimProtection">>
 ): Promise<{ success: boolean; message: string }> {
   if (!(await validateAdminAuth())) {
     return { success: false, message: "Unauthorized" };
