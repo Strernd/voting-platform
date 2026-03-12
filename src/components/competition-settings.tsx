@@ -8,7 +8,7 @@ import {
   getCompetitionSettings,
   updateCompetitionSettings,
 } from "@/lib/actions";
-import { Play, Pause, Hash, Save } from "lucide-react";
+import { Play, Pause, Hash, Save, ShieldCheck, ShieldOff } from "lucide-react";
 import type { CompetitionSettings as CompetitionSettingsType } from "@/db/schema";
 import { StartbahnConfigCard } from "@/components/startbahn-config";
 
@@ -43,6 +43,24 @@ export function CompetitionSettings() {
     try {
       const result = await updateCompetitionSettings({
         votingEnabled: !settings.votingEnabled,
+      });
+      if (result.success) {
+        await loadSettings();
+      } else {
+        alert(result.message);
+      }
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleToggleReclaimProtection = async () => {
+    if (!settings) return;
+
+    setUpdating(true);
+    try {
+      const result = await updateCompetitionSettings({
+        reclaimProtection: !settings.reclaimProtection,
       });
       if (result.success) {
         await loadSettings();
@@ -151,6 +169,70 @@ export function CompetitionSettings() {
                 <>
                   <Play className="h-5 w-5 mr-2" />
                   {updating ? "..." : "Abstimmung starten"}
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reclaim Protection Card */}
+      <Card
+        className={`border-2 ${
+          settings.reclaimProtection
+            ? "border-muted"
+            : "border-warning/50 bg-warning/5"
+        }`}
+      >
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div
+                className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+                  settings.reclaimProtection
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-warning text-warning-foreground"
+                }`}
+              >
+                {settings.reclaimProtection ? (
+                  <ShieldCheck className="h-8 w-8" />
+                ) : (
+                  <ShieldOff className="h-8 w-8" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">
+                  {settings.reclaimProtection
+                    ? "Reclaim-Schutz aktiv"
+                    : "Reclaim-Schutz deaktiviert"}
+                </h2>
+                <p className="text-muted-foreground">
+                  {settings.reclaimProtection
+                    ? "Bereits registrierte Codes können nicht erneut gescannt werden."
+                    : "Codes können erneut gescannt und neu registriert werden."}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleToggleReclaimProtection}
+              disabled={updating}
+              size="lg"
+              className={`h-14 px-8 text-lg font-semibold ${
+                settings.reclaimProtection
+                  ? "bg-warning hover:bg-warning/90 text-warning-foreground"
+                  : "bg-primary hover:bg-primary/90"
+              }`}
+            >
+              {settings.reclaimProtection ? (
+                <>
+                  <ShieldOff className="h-5 w-5 mr-2" />
+                  {updating ? "..." : "Schutz deaktivieren"}
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="h-5 w-5 mr-2" />
+                  {updating ? "..." : "Schutz aktivieren"}
                 </>
               )}
             </Button>

@@ -76,6 +76,9 @@ export const competitionSettings = sqliteTable("competition_settings", {
     .notNull()
     .default(false),
   startbahnCount: integer("startbahn_count").notNull().default(50),
+  reclaimProtection: integer("reclaim_protection", { mode: "boolean" })
+    .notNull()
+    .default(true),
 });
 
 export const beerRegistrations = sqliteTable(

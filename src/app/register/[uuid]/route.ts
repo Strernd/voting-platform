@@ -1,5 +1,6 @@
 import { voters } from "@/db/schema";
 import { db } from "@/lib/db";
+import { getCompetitionSettings } from "@/lib/actions";
 import { eq, and, isNull } from "drizzle-orm";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { cookies } from "next/headers";
@@ -21,10 +22,11 @@ export async function GET(
 
   try {
     const cookieStore = await cookies();
+    const settings = await getCompetitionSettings();
 
     // If the user already has a session for this exact UUID, just redirect home
     const existingSession = cookieStore.get(SESSION_COOKIE_NAME);
-    if (existingSession?.value === uuid) {
+    if (settings.reclaimProtection && existingSession?.value === uuid) {
       redirect("/");
     }
 
@@ -36,20 +38,34 @@ export async function GET(
       ?? "unknown";
     const userAgent = request.headers.get("user-agent") ?? "unknown";
 
-    // Atomically claim the voter UUID — only succeeds if registeredAt is NULL
-    const result = await db
-      .update(voters)
-      .set({ registeredAt: new Date(), registeredIp: ip, registeredUserAgent: userAgent })
-      .where(and(eq(voters.id, uuid), isNull(voters.registeredAt)))
-      .returning();
+    if (settings.reclaimProtection) {
+      // Atomically claim the voter UUID — only succeeds if registeredAt is NULL
+      const result = await db
+        .update(voters)
+        .set({ registeredAt: new Date(), registeredIp: ip, registeredUserAgent: userAgent })
+        .where(and(eq(voters.id, uuid), isNull(voters.registeredAt)))
+        .returning();
 
-    if (result.length === 0) {
-      // Either UUID doesn't exist or was already claimed
-      const existing = await db.select().from(voters).where(eq(voters.id, uuid));
-      if (existing.length > 0 && existing[0].registeredAt) {
-        redirect(`/register/claimed?id=${uuid}`);
+      if (result.length === 0) {
+        // Either UUID doesn't exist or was already claimed
+        const existing = await db.select().from(voters).where(eq(voters.id, uuid));
+        if (existing.length > 0 && existing[0].registeredAt) {
+          redirect(`/register/claimed?id=${uuid}`);
+        }
+        redirect("/register/error");
       }
-      redirect("/register/error");
+    } else {
+      // Reclaim protection off — allow re-registration of claimed codes
+      const result = await db
+        .update(voters)
+        .set({ registeredAt: new Date(), registeredIp: ip, registeredUserAgent: userAgent })
+        .where(eq(voters.id, uuid))
+        .returning();
+
+      if (result.length === 0) {
+        // UUID doesn't exist
+        redirect("/register/error");
+      }
     }
 
     // Set secure cookie
