@@ -581,9 +581,9 @@ export async function getAvailableStartbahns(roundId: number): Promise<number[]>
 let cachedRegisteredBeers: BeerRegistration[] | null = null;
 let registeredBeersCacheTime = 0;
 
-export async function getRegisteredBeers(): Promise<BeerRegistration[]> {
+export async function getRegisteredBeers(useCache = true): Promise<BeerRegistration[]> {
   const now = Date.now();
-  if (cachedRegisteredBeers && now - registeredBeersCacheTime < 180_000) {
+  if (useCache && cachedRegisteredBeers && now - registeredBeersCacheTime < 180_000) {
     return cachedRegisteredBeers;
   }
   try {
