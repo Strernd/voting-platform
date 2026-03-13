@@ -71,7 +71,7 @@ export function BeerRegistration() {
     try {
       const [beersData, registrationsData, roundsData, configsData] = await Promise.all([
         getAllBeers(),
-        getRegisteredBeers(),
+        getRegisteredBeers(false),
         getRounds(),
         getStartbahnConfigs(),
       ]);
