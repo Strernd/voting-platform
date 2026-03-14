@@ -134,7 +134,7 @@ export function VotingDrawer({
       </DrawerTrigger>
       <DrawerContent className="border-border bg-card">
         <DrawerTitle className="sr-only">{beer.name}</DrawerTitle>
-        <div className="p-6 max-w-lg mx-auto w-full">
+        <div className="p-6 max-w-lg mx-auto w-full overflow-y-auto">
           {/* Beer Header */}
           <div className="mb-6">
             <div className="flex items-center gap-4 mb-4">
